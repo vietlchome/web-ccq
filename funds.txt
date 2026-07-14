@@ -1,0 +1,9 @@
+# Danh sách quỹ theo dõi
+# - Dòng bắt đầu bằng # là comment
+# - ALL_STOCK = tự lấy TẤT CẢ quỹ cổ phiếu trên Fmarket
+# - Hoặc liệt kê từng mã shortName (vd DCDS) để chỉ theo dõi vài quỹ
+ALL_STOCK
+
+# Muốn thêm quỹ ngoài nhóm cổ phiếu (trái phiếu/cân bằng), thêm mã ở đây:
+# VFF
+# DCBF

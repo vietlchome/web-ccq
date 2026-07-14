@@ -1,0 +1,473 @@
+//@version=6
+indicator("DCA EMA200", overlay=true, max_boxes_count=500, max_labels_count=500, max_lines_count=500)
+// ===================================================
+// PHẦN 1: CẤU HÌNH INPUTS
+// ===================================================
+grp_dca     = "CẤU HÌNH MUA ĐỊNH KỲ"
+dcaDays     = input.int(5, title="Chu kỳ DCA (mỗi X phiên)", minval=1, tooltip="Số nến Daily giữa mỗi lần mua.\nCổ phiếu: 5 phiên ≈ 1 tuần | 22 phiên ≈ 1 tháng.\nCrypto (24/7): 7 phiên = 1 tuần | 30 phiên = 1 tháng.", group=grp_dca)
+buyAmount   = input.float(1000, title="Số tiền mua cơ sở (Base)", minval=1, group=grp_dca)
+unitSelect  = input.string("VNĐ (Nghìn)", title="Đơn vị tính", options=["USD", "VNĐ (Nghìn)", "VNĐ (Triệu)"], group=grp_dca)
+onlyBuyBelowEMA = input.bool(false, title="Chỉ mua khi Giá < EMA 200", group=grp_dca)
+
+grp_mult    = "HỆ SỐ NHÂN ĐỘNG (THEO KHOẢNG CÁCH EMA)"
+enableMult  = input.bool(false, title="Bật hệ số nhân động Mua/Bán", tooltip="Tắt = luôn gợi ý 1x.\nBật = hệ số tăng tỷ lệ với khoảng cách giá so với EMA200.\nLưu ý: hệ số MUA chỉ tăng khi giá DƯỚI EMA, hệ số BÁN chỉ tăng khi giá TRÊN EMA. Ngoài vùng đó = 1x.", group=grp_mult)
+multMode    = input.string("Z-Score", title="Cách đo khoảng cách", options=["Z-Score", "% EMA"], tooltip="% EMA: đo khoảng cách bằng % so với EMA200 (cách cũ). Phải tự chỉnh bước nhảy cho từng tài sản.\n\nZ-Score: đo bằng số độ lệch chuẩn (SD 200 nến). Tự thích nghi với độ biến động của từng tài sản — BTC hay cổ phiếu VN đều dùng chung 1 cấu hình được.", group=grp_mult)
+stepPctBuy  = input.float(10.0, title="[% EMA] Bước nhảy MUA (mỗi X% dưới EMA → +1x)", minval=0.1, step=0.1, tooltip="Chỉ dùng khi mode = % EMA.\nVD: 10% → giá dưới EMA 25% → hệ số mua = 2.5x.", group=grp_mult)
+stepPctSell = input.float(10.0, title="[% EMA] Bước nhảy BÁN (mỗi X% trên EMA → +1x)", minval=0.1, step=0.1, tooltip="Chỉ dùng khi mode = % EMA.\nVD: 10% → giá trên EMA 25% → hệ số bán = 2.5x.", group=grp_mult)
+zStepBuy    = input.float(1.0, title="[Z-Score] Bước nhảy MUA (mỗi X SD dưới EMA → +1x)", minval=0.1, step=0.1, tooltip="Chỉ dùng khi mode = Z-Score.\nVD: 1.0 → giá dưới EMA 2.5 độ lệch chuẩn → hệ số mua = 2.5x.\nGiá trị nhỏ hơn = gia tốc mạnh hơn.", group=grp_mult)
+zStepSell   = input.float(1.0, title="[Z-Score] Bước nhảy BÁN (mỗi X SD trên EMA → +1x)", minval=0.1, step=0.1, tooltip="Chỉ dùng khi mode = Z-Score.\nVD: 1.0 → giá trên EMA 2.5 độ lệch chuẩn → hệ số bán = 2.5x.", group=grp_mult)
+
+grp_sell    = "GỢI Ý ĐIỂM BÁN (SIGNAL ONLY)"
+showSellSignal = input.bool(false, title="Bật Gợi ý Bán", group=grp_sell)
+sellWait    = input.int(144, title="Delay nến Bán (Fibo)", options=[21, 34, 55, 89, 144], group=grp_sell)
+
+grp_sellexec = "THỰC HIỆN HÓA LỆNH BÁN"
+enableSellExec = input.bool(false, title="Bật thực hiện bán", tooltip="Bán thực sự → tiền gửi tiết kiệm → giải ngân lại khi giá đóng ≤ EMA200W.\nYêu cầu 'Bật Gợi ý Bán' phía trên.", group=grp_sellexec)
+savingsRate = input.float(5.0, title="Lãi suất tiết kiệm %/năm", minval=0, step=0.5, tooltip="Tiền bán được gửi tiết kiệm với lãi suất này.\nLãi kép theo ngày thực tế (tính cả cuối tuần).\nĐể 0 nếu không muốn tính lãi.", group=grp_sellexec)
+reinvestParts = input.int(3, title="Chia mua lại thành N phần", minval=1, tooltip="1 = đổ hết tiền một lần khi giá đóng ≤ EMA200W (cách cũ).\nN > 1 = mỗi lần chạm điều kiện chỉ giải ngân 1/N phần tiền còn lại, tránh all-in đúng một nến.\nMỗi lần bán mới sẽ reset lại thang N phần.", group=grp_sellexec)
+reinvestGap = input.int(5, title="Khoảng cách tối thiểu giữa các phần (phiên)", minval=1, tooltip="Số phiên tối thiểu giữa 2 lần giải ngân liên tiếp.\nChỉ có tác dụng khi N > 1.", group=grp_sellexec)
+
+grp_div     = "PHÂN KÌ RSI"
+showDiv     = input.bool(false, title="Hiển thị Phân kì RSI", tooltip="Tô nền vùng phân kì trên chart giá.\nĐỏ = phân kì âm (giá HH, RSI LH).\nXanh = phân kì dương (giá LL, RSI HL).", group=grp_div)
+rsiLen      = input.int(14, title="RSI Length", minval=2, group=grp_div)
+pivotLB     = input.int(5, title="Pivot Lookback", minval=2, maxval=20, tooltip="Số nến trái/phải để xác nhận đỉnh/đáy RSI.", group=grp_div)
+maxDivRange = input.int(60, title="Khoảng cách tối đa (bars)", minval=10, tooltip="Giới hạn khoảng cách giữa 2 điểm pivot.", group=grp_div)
+bearTransp  = input.int(85, title="Độ trong suốt — Phân kì Âm (đỏ)", minval=50, maxval=98, step=1, tooltip="Số càng lớn càng mờ. 85 = mặc định.", group=grp_div)
+bullTransp  = input.int(85, title="Độ trong suốt — Phân kì Dương (xanh)", minval=50, maxval=98, step=1, tooltip="Số càng lớn càng mờ. 85 = mặc định.", group=grp_div)
+
+grp_time    = "THỜI GIAN BACKTEST"
+useTime     = input.bool(true, title="Bật tính toán Portfolio", group=grp_time)
+startTime   = input.time(timestamp("01 Jan 2021 00:00"), title="Ngày bắt đầu", group=grp_time)
+endTime     = input.time(timestamp("01 Jan 2025 00:00"), title="Ngày kết thúc", group=grp_time)
+
+grp_budget  = "MỤC TIÊU & CỔ TỨC"
+showBudget  = input.bool(false, title="Hiện bảng Mục tiêu", group=grp_budget)
+lumpsum     = input.float(0, title="Lumpsum khởi đầu", minval=0, tooltip="Số tiền đầu tư 1 lần tại ngày bắt đầu.\nNhập theo cùng đơn vị tính. Để 0 nếu không dùng.", group=grp_budget)
+targetMode  = input.string("Số lượng", title="Loại mục tiêu", options=["Số lượng", "Giá trị tài sản"], tooltip="Chỉ áp dụng 1 trong 2:\n• Số lượng → dùng ô 'Mục tiêu Số lượng', bỏ qua ô Giá trị.\n• Giá trị tài sản → dùng ô 'Mục tiêu Giá trị', bỏ qua ô Số lượng.", group=grp_budget)
+targetQty   = input.float(1000, title="Mục tiêu Số lượng", minval=0.001, step=1, tooltip="Số đơn vị muốn tích lũy (CP, BTC, ETF...).\nChỉ có tác dụng khi chọn mode 'Số lượng'.", group=grp_budget)
+targetVal   = input.float(500, title="Mục tiêu Giá trị tài sản", minval=1, tooltip="Tổng giá trị danh mục mục tiêu.\nNhập theo cùng đơn vị tính. Chỉ có tác dụng khi chọn mode 'Giá trị tài sản'.", group=grp_budget)
+
+grp_vis     = "HIỂN THỊ TRÊN CHART"
+showBkeven  = input.bool(true, title="Hiện đường Giá Vốn TB", group=grp_vis)
+showEMA200  = input.bool(true, title="Hiện EMA 200", group=grp_vis)
+showWeekEMA = input.bool(false, title="Hiện EMA 200 Tuần (cố định)", tooltip="Vẽ đường nét đứt EMA200 khung Tuần, cố định trên mọi timeframe.", group=grp_vis)
+
+// Quy đổi đơn vị tiền
+multiplierMoney = switch unitSelect
+    "VNĐ (Nghìn)" => 1000
+    "VNĐ (Triệu)" => 1000000
+    => 1
+baseCapital = buyAmount * multiplierMoney
+
+// ===================================================
+// PHẦN 2: LOGIC CHU KỲ & ĐỊNH GIÁ ĐỘNG
+// ===================================================
+ema200 = ta.ema(close, 200)
+sd200  = ta.stdev(close, 200)   // độ lệch chuẩn 200 nến — dùng cho mode Z-Score
+
+// EMA200 Tuần — cố định trên mọi timeframe
+ema200W = request.security(syminfo.tickerid, "W", ta.ema(close, 200), lookahead=barmerge.lookahead_off)
+
+// Ghi nhận EMA200W tại mốc endTime (hoặc mới nhất nếu endTime ở tương lai)
+var float ema200WatEnd = na
+var int endBarIdx = na
+if not na(ema200W) and time <= endTime
+    ema200WatEnd := ema200W
+    endBarIdx := bar_index
+
+// Đếm phiên giao dịch
+isNewDay = ta.change(time("D")) != 0
+var int sessionCount = 0
+if isNewDay
+    sessionCount += 1
+
+// ---------------------------------------------------
+// FIX LOOKAHEAD (lệnh MUA):
+// Lệnh mua khớp tại OPEN của nến hiện tại → điều kiện & hệ số phải dựa trên
+// dữ liệu nến TRƯỚC (close[1], ema200[1], sd200[1]).
+// Mô phỏng đúng: "hôm qua đóng nến thấy tín hiệu → sáng nay đặt lệnh".
+// ---------------------------------------------------
+var int lastBuySession = na
+emaCondition = onlyBuyBelowEMA ? (close[1] < ema200[1]) : true
+buySignal = isNewDay and (na(lastBuySession) or (sessionCount - lastBuySession) >= dcaDays) and emaCondition
+
+// ---------------------------------------------------
+// HỆ SỐ NHÂN — KHOẢNG CÁCH CÓ HƯỚNG (fix lỗi abs):
+// • Hệ số MUA chỉ > 1x khi giá DƯỚI EMA (dữ liệu nến trước — khớp tại open).
+// • Hệ số BÁN chỉ > 1x khi giá TRÊN EMA (nến hiện tại — tín hiệu & khớp tại close).
+// Mode Z-Score: khoảng cách đo bằng số độ lệch chuẩn, tự thích nghi với
+// độ biến động của từng tài sản.
+// ---------------------------------------------------
+buyDistPct = close[1] < ema200[1] ? (ema200[1] - close[1]) / ema200[1] * 100 : 0.0
+buyDistZ   = (close[1] < ema200[1] and sd200[1] > 0) ? (ema200[1] - close[1]) / sd200[1] : 0.0
+buyDistSteps = multMode == "Z-Score" ? buyDistZ / zStepBuy : buyDistPct / stepPctBuy
+currentBuyMult = enableMult ? math.max(1.0, math.round(buyDistSteps * 10) / 10) : 1.0
+
+sellDistPct = close > ema200 ? (close - ema200) / ema200 * 100 : 0.0
+sellDistZ   = (close > ema200 and sd200 > 0) ? (close - ema200) / sd200 : 0.0
+sellDistSteps = multMode == "Z-Score" ? sellDistZ / zStepSell : sellDistPct / stepPctSell
+currentSellMult = enableMult ? math.max(1.0, math.round(sellDistSteps * 10) / 10) : 1.0
+
+// Biến Portfolio
+var float totalInvested = 0.0, var float totalUnits = 0.0
+var int totalBuys = 0, var int totalSells = 0
+var int firstBuyTime = na
+var float sumBuyMult = 0.0, var float sumSellMult = 0.0
+var bool lumpsumDone = false
+var float cashHolding = 0.0       // Tiền mặt từ bán
+var int reinvestCount = 0         // Số lần giải ngân mua lại
+bool inDateRange = time >= startTime and time <= endTime
+var bool isBuyBar = false
+isBuyBar := false
+
+// === IRR: mảng dòng tiền ngoài (âm = nạp vốn). Chỉ ghi lumpsum + DCA buy ===
+var array<float> cfT = array.new<float>()  // năm kể từ startTime
+var array<float> cfA = array.new<float>()  // số tiền (âm = chi ra)
+
+// Lumpsum: đầu tư 1 lần tại ngày bắt đầu
+lumpsumCapital = lumpsum * multiplierMoney
+if useTime and inDateRange and not lumpsumDone and lumpsumCapital > 0
+    lumpsumDone := true
+    firstBuyTime := time
+    totalInvested += lumpsumCapital
+    totalUnits += (lumpsumCapital / open)
+    array.push(cfT, (time - firstBuyTime) / 31557600000)
+    array.push(cfA, -lumpsumCapital)
+
+// ---------------------------------------------------
+// Tiền bán: lãi kép + THANG GIẢI NGÂN N PHẦN
+// Khi giá đóng ≤ EMA200W → giải ngân 1/N phần còn lại, cách nhau tối thiểu
+// reinvestGap phiên. Tránh all-in toàn bộ đúng một nến chạm đầu tiên.
+// Mỗi lần bán mới reset lại thang (partsLeft = N).
+// ---------------------------------------------------
+var bool isReinvestBar = false
+var int lastCompoundTime = na
+var float totalInterest = 0.0
+var int partsLeft = 0
+var int lastReinvestSession = na
+isReinvestBar := false
+
+if enableSellExec and cashHolding > 0
+    // Lãi kép theo ngày thực tế (kể cả cuối tuần/nghỉ lễ)
+    if not na(lastCompoundTime) and savingsRate > 0
+        daysElapsed = (time - lastCompoundTime) / 86400000
+        interest = cashHolding * (math.pow(1 + savingsRate / 100.0 / 365, daysElapsed) - 1)
+        cashHolding += interest
+        totalInterest += interest
+    lastCompoundTime := time
+
+    // Giải ngân theo thang khi giá đóng ≤ EMA200W
+    gapOK = na(lastReinvestSession) or (sessionCount - lastReinvestSession >= reinvestGap)
+    if useTime and inDateRange and not na(ema200W) and close <= ema200W and partsLeft > 0 and gapOK
+        deployAmt = partsLeft == 1 ? cashHolding : cashHolding / partsLeft
+        totalUnits += deployAmt / close
+        cashHolding -= deployAmt
+        partsLeft -= 1
+        lastReinvestSession := sessionCount
+        reinvestCount += 1
+        isReinvestBar := true
+        if cashHolding <= 0.0000001
+            cashHolding := 0.0
+            partsLeft := 0
+            lastCompoundTime := na
+
+if useTime and inDateRange and buySignal
+    lastBuySession := sessionCount
+    if na(firstBuyTime)
+        firstBuyTime := time
+    executionPrice = open
+    totalBuys += 1
+    actualBuyMoney = baseCapital * currentBuyMult
+    totalInvested += actualBuyMoney
+    totalUnits += (actualBuyMoney / executionPrice)
+    sumBuyMult += currentBuyMult
+    isBuyBar := true
+    array.push(cfT, (time - firstBuyTime) / 31557600000)
+    array.push(cfA, -actualBuyMoney)
+
+// ===================================================
+// PHẦN 3: LOGIC BÁN GỢI Ý
+// ===================================================
+var int crossAboveIndex = na
+if ta.crossover(close, ema200)
+    crossAboveIndex := bar_index
+if close < ema200
+    crossAboveIndex := na
+
+var float lastRedCandleHigh = na
+var bool validSellCandle = false
+validSellCandle := false
+if showSellSignal and (close < open) and (low > ema200)
+    if not na(crossAboveIndex) and (bar_index - crossAboveIndex >= sellWait)
+        upperWick = high - open
+        lowerWick = close - low
+        if (upperWick > lowerWick) and (math.abs(close - open) >= 0.5 * (high - low))
+            if na(lastRedCandleHigh) or (high >= lastRedCandleHigh)
+                validSellCandle := true
+                lastRedCandleHigh := high
+                if useTime and inDateRange
+                    totalSells += 1
+                    sumSellMult += currentSellMult
+                    // Thực hiện hóa lệnh bán
+                    if enableSellExec and totalUnits > 0
+                        sellMoney = baseCapital * currentSellMult
+                        sellUnits = math.min(sellMoney / close, totalUnits)
+                        cashReceived = sellUnits * close
+                        totalUnits -= sellUnits
+                        cashHolding += cashReceived
+                        partsLeft := reinvestParts   // Reset thang giải ngân sau mỗi lần bán
+if close < ema200
+    lastRedCandleHigh := na
+
+// ===================================================
+// PHẦN 4: PORTFOLIO MATH
+// ===================================================
+var float finalAssetValue = 0.0
+var float finalProfitPct = 0.0
+var float finalYears = 0.0
+var float breakevenPrice = 0.0
+var float finalMarketPrice = 0.0
+var float minPnlPct = na
+if useTime and time <= endTime
+    finalAssetValue := totalUnits * close + cashHolding
+    finalMarketPrice := close
+    if totalInvested > 0
+        finalProfitPct := ((finalAssetValue - totalInvested) / totalInvested) * 100
+        if na(minPnlPct) or finalProfitPct < minPnlPct
+            minPnlPct := finalProfitPct
+    if not na(firstBuyTime)
+        finalYears := math.max(0, time - firstBuyTime) / 31557600000
+    netCost = math.max(0, totalInvested - cashHolding)
+    breakevenPrice := totalUnits > 0 ? netCost / totalUnits : 0.0
+
+// ===================================================
+// PHẦN 5: PHÂN KÌ RSI — TÔ NỀN BẰNG BOX
+// ===================================================
+// Luôn tính RSI & pivot mỗi bar (bắt buộc Pine), chỉ vẽ box khi showDiv = true
+rsiVal = ta.rsi(close, rsiLen)
+rsiPH  = ta.pivothigh(rsiVal, pivotLB, pivotLB)
+rsiPL  = ta.pivotlow(rsiVal, pivotLB, pivotLB)
+
+var float prevRsiHigh  = na, var int prevRsiHighBar  = na, var float prevPriceHigh = na
+var float prevRsiLow   = na, var int prevRsiLowBar   = na, var float prevPriceLow  = na
+
+// Phân kì âm (Bearish): Giá đỉnh cao hơn, RSI đỉnh thấp hơn → tô đỏ
+if not na(rsiPH)
+    pivotBar   = bar_index - pivotLB
+    pivotPrice = high[pivotLB]
+    if showDiv and not na(prevRsiHigh) and (pivotBar - prevRsiHighBar) <= maxDivRange
+        if pivotPrice > prevPriceHigh and rsiPH < prevRsiHigh
+            box.new(prevRsiHighBar, pivotPrice, pivotBar, prevPriceHigh, bgcolor=color.new(color.red, bearTransp), border_color=na)
+    prevRsiHigh    := rsiPH
+    prevRsiHighBar := pivotBar
+    prevPriceHigh  := pivotPrice
+
+// Phân kì dương (Bullish): Giá đáy thấp hơn, RSI đáy cao hơn → tô xanh
+if not na(rsiPL)
+    pivotBar   = bar_index - pivotLB
+    pivotPrice = low[pivotLB]
+    if showDiv and not na(prevRsiLow) and (pivotBar - prevRsiLowBar) <= maxDivRange
+        if pivotPrice < prevPriceLow and rsiPL > prevRsiLow
+            box.new(prevRsiLowBar, prevPriceLow, pivotBar, pivotPrice, bgcolor=color.new(color.green, bullTransp), border_color=na)
+    prevRsiLow    := rsiPL
+    prevRsiLowBar := pivotBar
+    prevPriceLow  := pivotPrice
+
+// ===================================================
+// PHẦN 6: VISUALS
+// ===================================================
+atrOff = ta.atr(14) * 0.8
+
+if isBuyBar
+    label.new(bar_index, low - atrOff, text="x" + str.tostring(currentBuyMult, "#.#"), color=color.green, style=label.style_label_up, textcolor=color.white, size=size.small)
+if validSellCandle
+    label.new(bar_index, high + atrOff, text="x" + str.tostring(currentSellMult, "#.#"), color=color.red, style=label.style_label_down, textcolor=color.white, size=size.small)
+
+// Label giải ngân mua lại — hiện phần thứ mấy trong thang
+if isReinvestBar
+    rText = reinvestParts > 1 ? "R" + str.tostring(reinvestParts - partsLeft) + "/" + str.tostring(reinvestParts) : "R"
+    label.new(bar_index, low - atrOff, text=rText, color=color.blue, style=label.style_label_up, textcolor=color.white, size=size.small)
+
+plot(showBkeven and breakevenPrice > 0 ? breakevenPrice : na, title="Giá Vốn Trung Bình", color=color.blue, linewidth=2)
+plot(showEMA200 ? ema200 : na, title="EMA 200", color=color.orange, linewidth=2)
+
+// Label giá trị EMA200 hiện tại — nằm sát mép phải, đúng trên đường EMA
+var label emaLabel = na
+if showEMA200 and barstate.islast
+    if not na(emaLabel)
+        label.delete(emaLabel)
+    emaLabel := label.new(bar_index + 3, ema200, text=str.tostring(ema200, "#,###.##"), color=color.orange, style=label.style_label_left, textcolor=color.white, size=size.small)
+
+// EMA200 Tuần — đường nét đứt + label, theo mốc endTime
+var line weekEmaLine = na
+var label weekEmaLabel = na
+if showWeekEMA and barstate.islast and not na(ema200WatEnd) and not na(endBarIdx)
+    if not na(weekEmaLine)
+        line.delete(weekEmaLine)
+    if not na(weekEmaLabel)
+        label.delete(weekEmaLabel)
+    weekEmaLine  := line.new(endBarIdx - 200, ema200WatEnd, endBarIdx + 3, ema200WatEnd, color=color.purple, style=line.style_dashed, width=1)
+    weekEmaLabel := label.new(endBarIdx + 3, ema200WatEnd, text=str.tostring(ema200WatEnd, "#,###.##"), color=color.purple, style=label.style_label_left, textcolor=color.white, size=size.small)
+
+// ===================================================
+// PHẦN 6.5: IRR (CAGR THỰC — MONEY-WEIGHTED)
+// ===================================================
+// NPV của toàn bộ dòng tiền ngoài + giá trị tài sản cuối tại mốc finalYears.
+// Giải IRR bằng bisection. Chỉ chạy 1 lần ở bar cuối.
+npvCalc(array<float> aT, array<float> aA, float r, float termAmt, float termT) =>
+    s = 0.0
+    n = array.size(aA)
+    if n > 0
+        for i = 0 to n - 1
+            s += array.get(aA, i) / math.pow(1 + r, array.get(aT, i))
+    s += termAmt / math.pow(1 + r, termT)
+    s
+
+var float irrPct = na
+if useTime and barstate.islast and array.size(cfA) > 0 and finalAssetValue > 0 and finalYears >= 1.0
+    lo = -0.9
+    hi = 5.0
+    flo = npvCalc(cfT, cfA, lo, finalAssetValue, finalYears)
+    fhi = npvCalc(cfT, cfA, hi, finalAssetValue, finalYears)
+    if flo * fhi < 0
+        for k = 0 to 80
+            mid = (lo + hi) / 2
+            fm = npvCalc(cfT, cfA, mid, finalAssetValue, finalYears)
+            if flo * fm <= 0
+                hi := mid
+            else
+                lo := mid
+                flo := fm
+        irrPct := (lo + hi) / 2 * 100
+
+// ===================================================
+// PHẦN 7: BẢNG KẾT QUẢ
+// ===================================================
+var table dcaTable = table.new(position.top_right, 2, 14, border_width=1)
+if barstate.islast
+    cycleText = str.tostring(dcaDays) + " phiên"
+    table.cell(dcaTable, 0, 0, "DCA LITE (" + cycleText + ")", bgcolor=color.teal, text_color=color.white, width=12, text_size=size.small)
+    table.cell(dcaTable, 1, 0, "KẾT QUẢ", bgcolor=color.teal, text_color=color.white, width=13, text_size=size.small)
+
+    if useTime
+        tipOrders = "Số lần tín hiệu xuất hiện trong khoảng thời gian:\n• Mua = số lần DCA đã thực hiện (theo chu kỳ X phiên).\n• Bán = số tín hiệu bán xuất hiện — CHỈ thành lệnh thật khi bật 'Thực hiện bán'. Nếu tắt, đây chỉ là cảnh báo, không bán gì."
+        tipBuyX  = "Tổng hệ số nhân (x) cộng dồn qua tất cả lệnh MUA.\nTiền thực đã mua = hệ số này × 'Số tiền mua cơ sở'.\nVD: base 2tr, Σx=100 → đã giải ngân 200tr.\n(Khi tắt hệ số nhân động, mỗi lệnh = 1x.)"
+        tipSellX = "Tổng hệ số nhân (x) cộng dồn qua tất cả tín hiệu BÁN.\nTiền dự kiến bán = hệ số này × 'Số tiền mua cơ sở' (giới hạn bởi lượng hàng đang giữ).\nChỉ có tác dụng thật khi bật 'Thực hiện bán'."
+        tipDur   = "Tính từ LẦN MUA ĐẦU TIÊN đến hiện tại — KHÔNG phải từ ngày bắt đầu trong cài đặt.\nNếu data tài sản bắt đầu muộn hơn ngày cài đặt, hai mốc này lệch nhau."
+        tipBkev  = "Giá hòa vốn = vốn ròng / lượng hàng.\nVốn ròng = tổng tiền mua − tiền đã thu từ bán.\nGiá thị trường > số này = đang lãi; thấp hơn = đang lỗ."
+        tipDD    = "Điểm âm nặng nhất danh mục từng chạm, tính theo % so với vốn đã nạp.\nĐây KHÔNG phải max drawdown (đo từ đỉnh). Đây là mức 'âm vốn' thực tế bạn từng chịu.\nDùng để tự hỏi: mình có đủ gan giữ qua mức này không?"
+
+        table.cell(dcaTable, 0, 1, "Số lệnh", bgcolor=color.new(color.gray, 90), text_halign=text.align_left, text_size=size.small, tooltip=tipOrders)
+        table.cell(dcaTable, 1, 1, str.tostring(totalBuys) + " Mua (" + str.tostring(totalSells) + " Bán)", bgcolor=color.new(color.gray, 90), text_size=size.small, tooltip=tipOrders)
+
+        table.cell(dcaTable, 0, 2, "Tổng Call Mua (Σx)", bgcolor=color.new(color.gray, 80), text_halign=text.align_left, text_size=size.small, tooltip=tipBuyX)
+        table.cell(dcaTable, 1, 2, str.format("{0,number,#.#}", sumBuyMult), bgcolor=color.new(color.gray, 80), text_color=color.blue, text_size=size.small, tooltip=tipBuyX)
+
+        table.cell(dcaTable, 0, 3, "Tổng Call Bán (Σx)", bgcolor=color.new(color.gray, 90), text_halign=text.align_left, text_size=size.small, tooltip=tipSellX)
+        table.cell(dcaTable, 1, 3, str.format("{0,number,#.#}", sumSellMult), bgcolor=color.new(color.gray, 90), text_color=color.red, text_size=size.small, tooltip=tipSellX)
+
+        durText = finalYears < 0.01 ? "Mới bắt đầu" : str.format("{0,number,0.00}", finalYears) + " năm"
+        table.cell(dcaTable, 0, 4, "Thời gian", bgcolor=color.new(color.gray, 80), text_halign=text.align_left, text_size=size.small, tooltip=tipDur)
+        table.cell(dcaTable, 1, 4, durText, bgcolor=color.new(color.gray, 80), text_color=color.black, text_size=size.small, tooltip=tipDur)
+
+        table.cell(dcaTable, 0, 5, "Tổng Vốn Đã Vào", bgcolor=color.new(color.gray, 90), text_halign=text.align_left, text_size=size.small)
+        table.cell(dcaTable, 1, 5, str.format("{0,number,#,###}", totalInvested), bgcolor=color.new(color.gray, 90), text_size=size.small)
+
+        table.cell(dcaTable, 0, 6, "Lượng hàng", bgcolor=color.new(color.gray, 80), text_halign=text.align_left, text_size=size.small)
+        table.cell(dcaTable, 1, 6, str.format("{0,number,#,###.##}", totalUnits) + " " + syminfo.ticker, bgcolor=color.new(color.gray, 80), text_size=size.small)
+
+        table.cell(dcaTable, 0, 7, "Giá Vốn TB", bgcolor=color.new(color.gray, 90), text_halign=text.align_left, text_size=size.small, tooltip=tipBkev)
+        table.cell(dcaTable, 1, 7, str.format("{0,number,#,###.##}", breakevenPrice), bgcolor=color.new(color.gray, 90), text_color=color.blue, text_size=size.small, tooltip=tipBkev)
+
+        table.cell(dcaTable, 0, 8, "Giá Thị Trường", bgcolor=color.new(color.gray, 80), text_halign=text.align_left, text_size=size.small)
+        table.cell(dcaTable, 1, 8, str.format("{0,number,#,###.##}", finalMarketPrice), bgcolor=color.new(color.gray, 80), text_color=color.purple, text_size=size.small)
+
+        table.cell(dcaTable, 0, 9, "Tổng tài sản", bgcolor=color.new(color.gray, 90), text_halign=text.align_left, text_size=size.small)
+        table.cell(dcaTable, 1, 9, str.format("{0,number,#,###}", finalAssetValue), bgcolor=color.new(color.gray, 90), text_color=color.black, text_size=size.small)
+
+        pnlColor = finalProfitPct >= 0 ? color.green : color.red
+        pnlTextPct = (finalProfitPct >= 0 ? "+" : "") + str.format("{0,number,#,##0.##}", finalProfitPct) + "%"
+        table.cell(dcaTable, 0, 10, "% Lãi / Vốn", bgcolor=color.new(color.gray, 80), text_halign=text.align_left, text_size=size.small)
+        table.cell(dcaTable, 1, 10, pnlTextPct, bgcolor=color.new(color.gray, 80), text_color=pnlColor, text_size=size.small)
+
+        ddColor = na(minPnlPct) ? color.gray : (minPnlPct < 0 ? color.red : color.teal)
+        ddText  = na(minPnlPct) ? "—" : (minPnlPct >= 0 ? "+" : "") + str.format("{0,number,#,##0.##}", minPnlPct) + "%"
+        table.cell(dcaTable, 0, 11, "Đáy P&L / Vốn", bgcolor=color.new(color.gray, 90), text_halign=text.align_left, text_size=size.small, tooltip=tipDD)
+        table.cell(dcaTable, 1, 11, ddText, bgcolor=color.new(color.gray, 90), text_color=ddColor, text_size=size.small, tooltip=tipDD)
+
+        if enableSellExec
+            interestText = savingsRate > 0 ? " (+" + str.format("{0,number,#,###}", totalInterest) + " lãi)" : ""
+            partsText = partsLeft > 0 ? " [" + str.tostring(partsLeft) + " phần chờ]" : ""
+            table.cell(dcaTable, 0, 12, "Tiền bán (chờ EMA W)", bgcolor=color.new(color.yellow, 80), text_halign=text.align_left, text_size=size.small)
+            table.cell(dcaTable, 1, 12, str.format("{0,number,#,###}", cashHolding) + interestText + " R:" + str.tostring(reinvestCount) + partsText, bgcolor=color.new(color.yellow, 80), text_color=cashHolding > 0 ? color.purple : color.gray, text_size=size.small)
+
+        // Dòng IRR (CAGR thực — money-weighted). Annualize dưới 1 năm vô nghĩa → ẩn.
+        irrColor = na(irrPct) ? color.gray : (irrPct >= 0 ? color.green : color.red)
+        irrText  = not na(irrPct) ? (irrPct >= 0 ? "+" : "") + str.format("{0,number,#,##0.##}", irrPct) + "%/năm (IRR)" : (finalYears > 0.01 and finalYears < 1.0 ? "— (cần ≥1 năm)" : "—")
+        irrTip = "Độ tin cậy của IRR theo thời gian DCA:\n• < 1 năm: vô nghĩa (đã ẩn) — annualize giai đoạn quá ngắn gây sai lệch lớn.\n• ≥ 1 năm: tạm ổn — đọc tham khảo, vẫn còn nhiễu.\n• ≥ 2 năm: ổn.\n• ≥ 3 năm: đáng tin — đủ dài để qua một chu kỳ tăng/giảm.\n\nLưu ý: IRR là số quá khứ, không dùng để dự phóng tương lai."
+        table.cell(dcaTable, 0, 13, "CAGR thực (IRR)", bgcolor=color.new(color.blue, 80), text_halign=text.align_left, text_size=size.small, tooltip=irrTip)
+        table.cell(dcaTable, 1, 13, irrText, bgcolor=color.new(color.blue, 80), text_color=irrColor, text_size=size.small, tooltip=irrTip)
+    else
+        table.cell(dcaTable, 0, 1, "Trạng thái", bgcolor=color.white, text_size=size.small)
+        table.cell(dcaTable, 1, 1, "ĐANG TẮT", bgcolor=color.white, text_color=color.red, text_size=size.small)
+
+// ===================================================
+// PHẦN 8: MỤC TIÊU & CỔ TỨC (GÓC DƯỚI PHẢI)
+// ===================================================
+
+// Nhãn đơn vị gọn
+unitLabel = switch unitSelect
+    "VNĐ (Nghìn)" => " nghìn"
+    "VNĐ (Triệu)" => " triệu"
+    => " USD"
+
+// Auto-scale: tự chuyển đơn vị lớn hơn khi số quá lớn
+// VD: 10,000 triệu → 10 tỷ | 2,000 nghìn → 2 triệu
+smartFormat(float val) =>
+    if unitSelect == "VNĐ (Triệu)" and math.abs(val) >= 1000
+        str.format("{0,number,#,###.##}", val / 1000) + " tỷ"
+    else if unitSelect == "VNĐ (Nghìn)" and math.abs(val) >= 1000000
+        str.format("{0,number,#,###.##}", val / 1000000) + " tỷ"
+    else if unitSelect == "VNĐ (Nghìn)" and math.abs(val) >= 1000
+        str.format("{0,number,#,###.##}", val / 1000) + " triệu"
+    else
+        str.format("{0,number,#,###.##}", val) + unitLabel
+
+// Mục tiêu & tiến độ
+isQtyMode = targetMode == "Số lượng"
+targetRaw = isQtyMode ? targetQty : targetVal * multiplierMoney
+currentProgress = isQtyMode ? (totalUnits / targetQty * 100) : (finalAssetValue / targetRaw * 100)
+progressPct = targetRaw > 0 ? math.min(currentProgress, 999.9) : 0.0
+
+var table budgetTable = table.new(position.bottom_right, 2, 5, border_width=1)
+if showBudget and barstate.islast
+    progressColor = progressPct >= 100 ? color.green : progressPct >= 75 ? color.lime : progressPct >= 50 ? color.teal : progressPct >= 25 ? color.orange : color.red
+
+    table.cell(budgetTable, 0, 0, "MỤC TIÊU", bgcolor=color.gray, text_color=color.white, width=13, text_size=size.small)
+    table.cell(budgetTable, 1, 0, "GIÁ TRỊ", bgcolor=color.gray, text_color=color.white, width=14, text_size=size.small)
+
+    // Dòng 1: Lumpsum khởi đầu
+    tipLump = "Số tiền đầu tư MỘT LẦN ngay tại ngày bắt đầu (mua gộp), tách biệt với dòng DCA định kỳ.\nDùng khi bạn có sẵn một khoản lớn muốn vào ngay thay vì rải đều.\nĐể 0 nếu chỉ DCA thuần. Nhập theo cùng đơn vị tính."
+    lsDisplay = lumpsum > 0 ? smartFormat(lumpsum) : "—"
+    lsColor = lumpsum > 0 ? color.purple : color.gray
+    table.cell(budgetTable, 0, 1, "Lumpsum (khởi đầu)", bgcolor=color.new(color.gray, 90), text_halign=text.align_left, text_size=size.small, tooltip=tipLump)
+    table.cell(budgetTable, 1, 1, lsDisplay, bgcolor=color.new(color.gray, 90), text_color=lsColor, text_size=size.small, tooltip=tipLump)
+
+    // Dòng 2: Mục tiêu
+    targetText = isQtyMode ? str.format("{0,number,#,###.##}", targetQty) + " đơn vị" : smartFormat(targetVal)
+    table.cell(budgetTable, 0, 2, "Mục tiêu", bgcolor=color.new(color.gray, 80), text_halign=text.align_left, text_size=size.small)
+    table.cell(budgetTable, 1, 2, targetText, bgcolor=color.new(color.gray, 80), text_size=size.small)
+
+    // Dòng 3: Tiến độ
+    progressDisplay = isQtyMode ? str.format("{0,number,#,###.##}", totalUnits) + " đơn vị" : smartFormat(finalAssetValue / multiplierMoney)
+    table.cell(budgetTable, 0, 3, "Tiến độ", bgcolor=color.new(color.gray, 90), text_halign=text.align_left, text_size=size.small)
+    table.cell(budgetTable, 1, 3, progressDisplay + " (" + str.format("{0,number,#,##0.#}", progressPct) + "%)", bgcolor=color.new(color.gray, 90), text_color=progressColor, text_size=size.small)
+
+    // Dòng 4: Còn thiếu
+    remainQty = targetQty - totalUnits
+    remainVal = targetRaw - finalAssetValue
+    isDone = isQtyMode ? (remainQty <= 0) : (remainVal <= 0)
+    remainText = isDone ? "✓ Đã đạt" : (isQtyMode ? str.format("{0,number,#,###.##}", remainQty) + " đơn vị" : smartFormat(remainVal / multiplierMoney))
+    remainColor = isDone ? color.green : color.orange
+    table.cell(budgetTable, 0, 4, "Còn thiếu", bgcolor=color.new(color.gray, 80), text_halign=text.align_left, text_size=size.small)
+    table.cell(budgetTable, 1, 4, remainText, bgcolor=color.new(color.gray, 80), text_color=remainColor, text_size=size.small)

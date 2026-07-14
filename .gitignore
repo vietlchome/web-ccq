@@ -1,0 +1,11 @@
+# Rác Python
+__pycache__/
+*.pyc
+
+# File tạm / debug (không cần cho web)
+.sync_probe.txt
+data/_debug_fmarket.json
+
+# OS
+.DS_Store
+Thumbs.db
