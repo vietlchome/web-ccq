@@ -11,6 +11,11 @@
     --text: #dbe4f5; --muted: #8494b3; --green: #22c55e; --red: #ef4444;
     --orange: #f59e0b; --blue: #3b82f6; --purple: #a78bfa;
   }
+  body.light {
+    --bg: #eceff3; --panel: #ffffff; --panel2: #f4f6f9; --border: #d5dbe6;
+    --text: #1e2937; --muted: #5b6b83; --green: #16a34a; --red: #dc2626;
+    --orange: #d97706; --blue: #2563eb; --purple: #7c3aed;
+  }
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text);
     font: 14px/1.5 -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
@@ -18,6 +23,10 @@
     display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
   header h1 { font-size: 18px; margin: 0; }
   header .sub { color: var(--muted); font-size: 12px; }
+  header .theme-btn { margin-left: auto; align-self: center; background: var(--panel2);
+    color: var(--text); border: 1px solid var(--border); border-radius: 8px;
+    padding: 6px 12px; font-size: 13px; cursor: pointer; }
+  header .theme-btn:hover { border-color: var(--blue); }
   .banner { background: #7c2d12; color: #fed7aa; padding: 8px 20px; font-size: 13px; }
   .layout { display: flex; gap: 16px; padding: 16px 20px; align-items: flex-start; }
   .sidebar { width: 270px; flex-shrink: 0; background: var(--panel);
@@ -174,6 +183,7 @@
 <header>
   <h1>📈 DCA EMA200 — Chứng chỉ quỹ</h1>
   <span class="sub">Dữ liệu NAV: Fmarket · cập nhật <b id="updatedAt">—</b></span>
+  <button id="themeToggle" class="theme-btn" title="Đổi nền sáng/tối">🌙 Tối</button>
 </header>
 <div class="banner" id="sampleBanner" style="display:none">
   ⚠️ Đang hiển thị <b>DỮ LIỆU MẪU</b> (giả lập). Chạy <code>python fetch_data.py</code> để tải NAV thật từ Fmarket.
@@ -244,7 +254,7 @@
       <div id="chart"></div>
     </div>
     <div class="legend">
-      <span style="color:#e2e8f0">— <b>NAV</b></span>
+      <span style="color:var(--text)">— <b>NAV</b></span>
       <span class="orangec">— <b>EMA200</b></span>
       <span class="purplec">- - <b>EMA200 tuần</b></span>
       <span class="blue">— <b>Giá vốn TB</b></span>
@@ -338,6 +348,11 @@ const DEFAULTS = {
 };
 const LS_KEY = "dca_ema200_params_v3";
 const FAV_KEY = "dca_ema200_favs";
+const THEME_KEY = "dca_ema200_theme";
+const CHART_THEMES = {
+  dark:  { bg: "#0f1420", text: "#8494b3", grid: "#1d2639", border: "#2a3550", nav: "#e2e8f0" },
+  light: { bg: "#ffffff", text: "#5b6b83", grid: "#eaedf2", border: "#d5dbe6", nav: "#0f172a" },
+};
 const nfVND = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 });
 const nf2 = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 });
 
@@ -710,6 +725,25 @@ function initChart() {
     setRangeActive(0);
   });
   initLineDrag();
+}
+
+// Đổi nền sáng/tối — cập nhật cả biến CSS (UI) lẫn màu chart canvas
+function applyTheme(name) {
+  const t = CHART_THEMES[name] || CHART_THEMES.dark;
+  document.body.classList.toggle("light", name === "light");
+  localStorage.setItem(THEME_KEY, name);
+  const btn = el("themeToggle");
+  if (btn) btn.textContent = name === "light" ? "☀️ Sáng" : "🌙 Tối";
+  if (state.chart) {
+    state.chart.applyOptions({
+      layout: { background: { color: t.bg }, textColor: t.text },
+      grid: { vertLines: { color: t.grid }, horzLines: { color: t.grid } },
+      timeScale: { borderColor: t.border },
+      rightPriceScale: { borderColor: t.border },
+    });
+    if (state.series.nav) state.series.nav.applyOptions({ color: t.nav });
+    if (state.overlay) state.overlay.refresh();
+  }
 }
 
 // Kéo vạch Bắt đầu / Kết thúc trên chart để đổi khoảng backtest
@@ -1528,6 +1562,9 @@ async function loadAll() {
     b.addEventListener("click", () => applyRange(+b.dataset.m)));
   state.rangeMonths = 24;
   initChart();
+  applyTheme(localStorage.getItem(THEME_KEY) || "dark");
+  el("themeToggle").addEventListener("click", () =>
+    applyTheme(document.body.classList.contains("light") ? "dark" : "light"));
   loadAll().catch(e => {
     (el("chartLabel") || document.body).innerHTML =
       `<div style="color:var(--red);font-size:12px">Không tải được dữ liệu (${e.message}). ` +
