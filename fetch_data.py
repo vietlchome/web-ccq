@@ -379,28 +379,70 @@ def get_index_history(symbol: str = "VNINDEX") -> list:
     return [[ts, dedup[ts]] for ts in sorted(dedup)]
 
 
-def get_gold_history() -> list:
-    """Giá vàng thế giới XAU/USD theo ngày (nguồn stooq, CSV). [[epoch_ms_ngày, close], ...]."""
-    url = "https://stooq.com/q/d/l/"
-    r = requests.get(url, params={"s": "xauusd", "i": "d"}, headers=INDEX_HEADERS, timeout=30)
+def _gold_stooq(sym: str) -> list:
+    """CSV stooq (Date,Open,High,Low,Close,Volume)."""
+    r = requests.get("https://stooq.com/q/d/l/", params={"s": sym, "i": "d"},
+                     headers=INDEX_HEADERS, timeout=30)
     if r.status_code != 200:
         raise RuntimeError(f"stooq {r.status_code}")
     lines = r.text.strip().splitlines()
     if len(lines) < 2 or not lines[0].lower().startswith("date"):
-        raise RuntimeError(f"stooq trả về lạ: {r.text[:120]}")
+        raise RuntimeError(f"stooq trả về lạ: {r.text[:100]}")
     rows = []
     for ln in lines[1:]:
         parts = ln.split(",")
         if len(parts) < 5:
             continue
-        d, close = parts[0], parts[4]
         try:
-            dt = datetime.strptime(d, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            rows.append([_day_ms(dt.timestamp()), float(close)])
+            dt = datetime.strptime(parts[0], "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            rows.append([_day_ms(dt.timestamp()), float(parts[4])])
         except Exception:
             continue
+    return rows
+
+
+def _gold_yahoo(sym: str) -> list:
+    """Yahoo Finance chart API (JSON). sym vd 'GC=F' (vàng tương lai) hoặc 'XAUUSD=X'."""
+    from urllib.parse import quote
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{quote(sym)}"
+    r = requests.get(url, params={"range": "30y", "interval": "1d"},
+                     headers=INDEX_HEADERS, timeout=30)
+    if r.status_code != 200:
+        raise RuntimeError(f"yahoo {r.status_code}")
+    res = (r.json().get("chart") or {}).get("result") or []
+    if not res:
+        raise RuntimeError("yahoo: rỗng")
+    res = res[0]
+    ts = res.get("timestamp") or []
+    closes = (((res.get("indicators") or {}).get("quote") or [{}])[0]).get("close") or []
+    rows = []
+    for t, c in zip(ts, closes):
+        if c is None:
+            continue
+        rows.append([_day_ms(int(t)), float(c)])
+    return rows
+
+
+def get_gold_history() -> list:
+    """Giá vàng thế giới theo ngày, thử nhiều nguồn. [[epoch_ms_ngày, close], ...]."""
+    sources = [
+        ("stooq XAUUSD", lambda: _gold_stooq("xauusd")),
+        ("Yahoo GC=F", lambda: _gold_yahoo("GC=F")),
+        ("Yahoo XAUUSD=X", lambda: _gold_yahoo("XAUUSD=X")),
+        ("stooq XAU", lambda: _gold_stooq("xau")),
+    ]
+    rows, last_err = [], None
+    for name, fn in sources:
+        try:
+            rows = fn()
+            if rows:
+                print(f"  (nguồn {name})", flush=True)
+                break
+        except Exception as e:
+            last_err = e
+            print(f"  {name} lỗi: {e}", flush=True)
     if not rows:
-        raise RuntimeError("stooq: không parse được dòng nào")
+        raise RuntimeError(f"Tất cả nguồn vàng đều lỗi. Cuối: {last_err}")
     rows.sort(key=lambda x: x[0])
     dedup = {}
     for ts, c in rows:
