@@ -56,6 +56,10 @@
   .kpi .k { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
   .kpi .v { font-size: 22px; font-weight: 700; margin-top: 4px; }
   .kpi .s { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .kpi { position: relative; }
+  .kpi-extra { position: absolute; top: 12px; right: 14px; text-align: right; font-size: 11px;
+    color: #eab308; line-height: 1.35; }
+  .kpi-extra b { font-size: 15px; font-weight: 700; }
   .statgroups { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 10px; margin-top: 10px; }
   .sg { background: var(--panel); border: 1px solid var(--border);
@@ -209,6 +213,8 @@
     <div class="grp">
       <h3>Hiển thị</h3>
       <div class="row"><label>Hiện EMA200 tuần (tím)</label><input type="checkbox" id="showEmaW" checked></div>
+      <div class="row"><label>Hiện giá vàng (so sánh DCA)</label><input type="checkbox" id="showGold"></div>
+      <div class="hint">Vàng thế giới (XAU/USD), rebase về thang NAV để so hình dạng. So % lãi/vốn khi DCA cùng cách vào vàng — hiện ở ô "% Lãi/Vốn" và "CAGR".</div>
       <div class="row"><label>Nhãn hệ số trên marker</label>
         <select id="labelMode">
           <option value="all">Tất cả</option>
@@ -242,6 +248,7 @@
       <span class="orangec">— <b>EMA200</b></span>
       <span class="purplec">- - <b>EMA200 tuần</b></span>
       <span class="blue">— <b>Giá vốn TB</b></span>
+      <span style="color:#eab308">— <b>Vàng (khi bật)</b></span>
       <span class="pos">🏷 <b>Nhãn xanh = điểm mua (xN = hệ số)</b></span>
       <span class="muted">┆ <b>Kéo vạch Bắt đầu/Kết thúc để backtest</b></span>
     </div>
@@ -327,7 +334,7 @@ const DEFAULTS = {
   enableMult: false, stepPctBuy: 10,
   startDate: "2021-01-01", endDate: "", lumpsum: 0,
   targetMode: "qty", targetValue: 0, targetUnit: "trieu",
-  showEmaW: true, labelMode: "all",
+  showEmaW: true, showGold: false, labelMode: "all",
 };
 const LS_KEY = "dca_ema200_params_v3";
 const FAV_KEY = "dca_ema200_favs";
@@ -550,6 +557,7 @@ function getParams() {
   p.targetValue = Math.max(0, parseFloat(el("targetValue").value) || 0);
   p.targetUnit = el("targetUnit").value;
   p.showEmaW = el("showEmaW").checked;
+  p.showGold = el("showGold").checked;
   p.labelMode = el("labelMode").value;
   return p;
 }
@@ -561,7 +569,8 @@ function setParams(p) {
   el("lumpsum").value = p.lumpsum;
   el("targetMode").value = p.targetMode; el("targetValue").value = p.targetValue;
   el("targetUnit").value = p.targetUnit || "trieu";
-  el("showEmaW").checked = p.showEmaW; el("labelMode").value = p.labelMode;
+  el("showEmaW").checked = p.showEmaW; el("showGold").checked = !!p.showGold;
+  el("labelMode").value = p.labelMode;
 }
 function el(id) { return document.getElementById(id); }
 function fmtDate(ms) {
@@ -686,11 +695,14 @@ function initChart() {
     },
   });
   state.chart = c;
-  state.series.nav = c.addLineSeries({ color: "#e2e8f0", lineWidth: 1, title: "NAV" });
-  state.series.ema = c.addLineSeries({ color: "#f59e0b", lineWidth: 2, title: "EMA200" });
+  state.series.nav = c.addLineSeries({ color: "#e2e8f0", lineWidth: 1, title: "NAV", priceLineVisible: false });
+  state.series.ema = c.addLineSeries({ color: "#f59e0b", lineWidth: 2, title: "EMA200", priceLineVisible: false });
   state.series.emaW = c.addLineSeries({ color: "#a78bfa", lineWidth: 2,
-    lineStyle: LightweightCharts.LineStyle.Dashed, title: "EMA200W" });
-  state.series.bkeven = c.addLineSeries({ color: "#3b82f6", lineWidth: 2, title: "Giá vốn TB" });
+    lineStyle: LightweightCharts.LineStyle.Dashed, title: "EMA200W", priceLineVisible: false });
+  state.series.bkeven = c.addLineSeries({ color: "#3b82f6", lineWidth: 2, title: "Giá vốn TB", priceLineVisible: false });
+  // đường giá vàng (so sánh) — rebase về thang NAV, không hiện tag/price-line
+  state.series.gold = c.addLineSeries({ color: "#eab308", lineWidth: 1, title: "Vàng",
+    priceLineVisible: false, lastValueVisible: false });
   state.overlay = new ChartOverlay();
   state.series.nav.attachPrimitive(state.overlay);
   el("chart").addEventListener("dblclick", () => {
@@ -773,8 +785,8 @@ function applyRange(m) {
   });
 }
 
-function kpi(k, v, cls = "", s = "") {
-  return `<div class="kpi"><div class="k">${k}</div><div class="v ${cls}">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`;
+function kpi(k, v, cls = "", s = "", extra = "") {
+  return `<div class="kpi">${extra ? `<div class="kpi-extra">${extra}</div>` : ""}<div class="k">${k}</div><div class="v ${cls}">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`;
 }
 function li(lbl, val, cls = "", tip = "") {
   return `<div class="li" ${tip ? `title="${tip}"` : ""}><span class="lbl">${lbl}</span><span class="val ${cls}">${val}</span></div>`;
@@ -817,6 +829,21 @@ function render() {
     state.series.emaW.setData([]);
   }
   state.series.bkeven.setData(bt.breakevenLine.map(x => ({ time: toChartTime(x.time), value: x.value })));
+  // Đường vàng — rebase về thang NAV (giá vàng khác đơn vị nên chuẩn hoá cho cùng khởi điểm)
+  let goldBt = null;
+  if (p.showGold && state.gold && state.gold.rows && state.gold.rows.length) {
+    const gRows = state.gold.rows;
+    const gAtStart = valAtOrBefore(gRows, rows[0][0]) || gRows[0][1];
+    const f = gAtStart > 0 ? rows[0][1] / gAtStart : 1;
+    state.series.gold.setData(gRows.filter(r => r[0] >= rows[0][0])
+      .map(r => ({ time: toChartTime(r[0]), value: r[1] * f })));
+    // DCA trên vàng cùng tham số, cùng khoảng thời gian đang backtest
+    const wStart = p.startDate ? p.startDate : new Date(rows[0][0]).toISOString().slice(0, 10);
+    const wEnd = p.endDate ? p.endDate : new Date(rows[rows.length - 1][0]).toISOString().slice(0, 10);
+    goldBt = runBacktest(gRows, { ...p, startDate: wStart, endDate: wEnd });
+  } else {
+    state.series.gold.setData([]);
+  }
   // Overlay: nhãn mua + vạch backtest (đẩy nhãn xuống dưới giá theo ATR như Pine: atr*0.8)
   const atr = atrProxySeries(rows.map(r => r[1]), 14);
   state.overlay.buys = bt.buys.map(b => ({
@@ -858,14 +885,20 @@ function render() {
     dcaSub = `chu kỳ ${p.dcaDays} phiên` + (p.onlyBuyBelowEMA ? " · đang dưới EMA200 ✓" : "");
   }
 
+  // So sánh với vàng (nếu bật) — DCA cùng cách vào vàng
+  const goldPnlExtra = (goldBt && goldBt.totalInvested > 0)
+    ? `🥇 Vàng<br><b>${signFmt(goldBt.finalProfitPct, "%")}</b>` : "";
+  const goldCagrExtra = (goldBt && goldBt.irrPct !== null)
+    ? `🥇 Vàng<br><b>${signFmt(goldBt.irrPct, "%")}</b>` : "";
+
   el("resultKpis").innerHTML =
     kpi("Tổng tài sản", nfVND.format(bt.finalAssetValue) + " đ", "",
       "vốn đã vào " + nfVND.format(bt.totalInvested) + " đ") +
     kpi("% Lãi / Vốn", signFmt(bt.finalProfitPct, "%"), pnlCls,
-      "lãi ròng " + (netProfit >= 0 ? "+" : "") + nfVND.format(netProfit) + " đ") +
+      "lãi ròng " + (netProfit >= 0 ? "+" : "") + nfVND.format(netProfit) + " đ", goldPnlExtra) +
     kpi("CAGR thực (IRR)", irrText,
       bt.irrPct !== null ? (bt.irrPct >= 0 ? "pos" : "neg") : "",
-      "money-weighted, số quá khứ") +
+      "money-weighted, số quá khứ", goldCagrExtra) +
     kpi("Kỳ DCA tiếp theo", dcaVal, dcaCls, dcaSub);
 
   // ----- Nhóm chi tiết -----
@@ -1468,6 +1501,11 @@ async function loadAll() {
     const r = await fetch("data/VNINDEX.json?t=" + Date.now());
     state.benchmark = r.ok ? await r.json() : null;
   } catch (e) { state.benchmark = null; }
+  // Giá vàng (không bắt buộc)
+  try {
+    const r = await fetch("data/GOLD.json?t=" + Date.now());
+    state.gold = r.ok ? await r.json() : null;
+  } catch (e) { state.gold = null; }
   // ô tìm kiếm/đổi quỹ (gom nhóm theo công ty, gõ để lọc)
   initFundPicker();
   initOverviewSort();

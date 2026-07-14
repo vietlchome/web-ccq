@@ -379,6 +379,35 @@ def get_index_history(symbol: str = "VNINDEX") -> list:
     return [[ts, dedup[ts]] for ts in sorted(dedup)]
 
 
+def get_gold_history() -> list:
+    """Giá vàng thế giới XAU/USD theo ngày (nguồn stooq, CSV). [[epoch_ms_ngày, close], ...]."""
+    url = "https://stooq.com/q/d/l/"
+    r = requests.get(url, params={"s": "xauusd", "i": "d"}, headers=INDEX_HEADERS, timeout=30)
+    if r.status_code != 200:
+        raise RuntimeError(f"stooq {r.status_code}")
+    lines = r.text.strip().splitlines()
+    if len(lines) < 2 or not lines[0].lower().startswith("date"):
+        raise RuntimeError(f"stooq trả về lạ: {r.text[:120]}")
+    rows = []
+    for ln in lines[1:]:
+        parts = ln.split(",")
+        if len(parts) < 5:
+            continue
+        d, close = parts[0], parts[4]
+        try:
+            dt = datetime.strptime(d, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            rows.append([_day_ms(dt.timestamp()), float(close)])
+        except Exception:
+            continue
+    if not rows:
+        raise RuntimeError("stooq: không parse được dòng nào")
+    rows.sort(key=lambda x: x[0])
+    dedup = {}
+    for ts, c in rows:
+        dedup[ts] = c
+    return [[ts, dedup[ts]] for ts in sorted(dedup)]
+
+
 def main():
     funds = build_fund_list()
     if not funds:
@@ -455,6 +484,19 @@ def main():
             print(f"  VNINDEX: {len(vrows)} phiên, close mới nhất {vrows[-1][1]:,.2f}")
     except Exception as e:
         print(f"  LỖI VNINDEX: {e}")
+
+    # Giá vàng thế giới (không bắt buộc — để so sánh DCA)
+    try:
+        print("Đang tải giá vàng (XAU/USD)...", flush=True)
+        grows = get_gold_history()
+        if grows:
+            with open(os.path.join(DATA_DIR, "GOLD.json"), "w", encoding="utf-8") as f:
+                json.dump({"symbol": "XAUUSD", "name": "Vàng thế giới (XAU/USD)",
+                           "updatedAt": now_iso, "rows": grows},
+                          f, ensure_ascii=False, separators=(",", ":"))
+            print(f"  Vàng: {len(grows)} phiên, giá mới nhất {grows[-1][1]:,.2f}")
+    except Exception as e:
+        print(f"  LỖI Vàng: {e}")
 
     with open(os.path.join(DATA_DIR, "index.json"), "w", encoding="utf-8") as f:
         json.dump({"updatedAt": now_iso, "funds": index}, f,
