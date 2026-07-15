@@ -450,6 +450,74 @@ def get_gold_history() -> list:
     return [[ts, dedup[ts]] for ts in sorted(dedup)]
 
 
+# ---- ETF niêm yết trên HOSE (lấy GIÁ thị trường từ nguồn chứng khoán) ----
+ETFS = [
+    ("E1VFVN30", "DCVFM VN30 ETF"),
+    ("FUEVFVND", "DCVFM VNDIAMOND ETF"),
+    ("FUESSVFL", "SSIAM VNFIN LEAD ETF"),
+    ("FUEVN100", "SSIAM VN100 ETF"),
+    ("FUEMAV30", "Mirae Asset VN30 ETF"),
+]
+
+
+def _stock_entrade(sym: str) -> list:
+    url = "https://services.entrade.com.vn/chart-api/v2/ohlcs/stock"
+    frm = int(datetime(2000, 1, 1, tzinfo=timezone.utc).timestamp())
+    to = int(datetime.now(timezone.utc).timestamp())
+    r = requests.get(url, params={"from": frm, "to": to, "symbol": sym, "resolution": "1D"},
+                     headers=INDEX_HEADERS, timeout=30)
+    if r.status_code != 200:
+        raise RuntimeError(f"Entrade {r.status_code}")
+    data = r.json()
+    if not data.get("t"):
+        raise RuntimeError("Entrade rỗng")
+    return [[_day_ms(ts), float(c)] for ts, c in zip(data["t"], data["c"])]
+
+
+def _stock_tcbs(sym: str) -> list:
+    url = "https://apipubaggr.tcbs.com.vn/stock-insight/v2/stock/bars-long-term"
+    r = requests.get(url, params={"ticker": sym, "type": "stock", "resolution": "D",
+                                  "to": int(datetime.now(timezone.utc).timestamp()), "countBack": 10000},
+                     headers=INDEX_HEADERS, timeout=30)
+    if r.status_code != 200:
+        raise RuntimeError(f"TCBS {r.status_code}")
+    data = r.json().get("data") or []
+    rows = []
+    for it in data:
+        d, close = it.get("tradingDate"), it.get("close")
+        if d is None or close is None:
+            continue
+        if isinstance(d, (int, float)):
+            ts = _day_ms(int(d) / 1000)
+        else:
+            ts = _day_ms(datetime.strptime(str(d)[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
+        rows.append([ts, float(close)])
+    return rows
+
+
+def get_stock_history(sym: str) -> list:
+    """Lịch sử giá 1 mã niêm yết (ETF/cổ phiếu), thử nhiều nguồn. [[ms, close], ...]."""
+    sources = [("CafeF", lambda: _from_cafef(sym)), ("VNDirect", lambda: _from_vndirect(sym)),
+               ("Entrade", lambda: _stock_entrade(sym)), ("TCBS", lambda: _stock_tcbs(sym))]
+    rows, last = [], None
+    for name, fn in sources:
+        try:
+            rows = fn()
+            if rows:
+                print(f"  (nguồn {name})", flush=True)
+                break
+        except Exception as e:
+            last = e
+            print(f"  {name} lỗi: {e}", flush=True)
+    if not rows:
+        raise RuntimeError(f"Hết nguồn cho {sym}. Cuối: {last}")
+    rows.sort(key=lambda x: x[0])
+    dedup = {}
+    for ts, c in rows:
+        dedup[ts] = c
+    return [[ts, dedup[ts]] for ts in sorted(dedup)]
+
+
 def main():
     funds = build_fund_list()
     if not funds:
@@ -513,6 +581,28 @@ def main():
             time.sleep(1)  # lịch sự với API
         except Exception as e:
             print(f"  LỖI {symbol}: {e}")
+
+    # ETF niêm yết — lấy giá thị trường, gom nhóm owner="ETF"
+    for tk, nm in ETFS:
+        try:
+            print(f"Đang tải ETF {tk}...", flush=True)
+            rows = get_stock_history(tk)
+            if not rows:
+                print(f"  {tk}: không có dữ liệu, bỏ qua.")
+                continue
+            out = {"symbol": tk, "name": nm, "updatedAt": now_iso,
+                   "info": {"assetType": "ETF (niêm yết)", "owner": "ETF"}, "rows": rows}
+            with open(os.path.join(DATA_DIR, f"{tk}.json"), "w", encoding="utf-8") as f:
+                json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+            index.append({
+                "symbol": tk, "name": nm, "owner": "ETF", "assetType": "ETF (niêm yết)",
+                "inceptionDate": None, "navChange": None, "count": len(rows),
+                "firstDate": rows[0][0], "lastDate": rows[-1][0], "lastNav": rows[-1][1],
+            })
+            print(f"  {tk}: {len(rows)} phiên, giá mới nhất {rows[-1][1]:,.2f}")
+            time.sleep(1)
+        except Exception as e:
+            print(f"  LỖI ETF {tk}: {e}")
 
     # Benchmark VNINDEX (không bắt buộc — lỗi thì web vẫn chạy, chỉ thiếu phần so sánh)
     try:

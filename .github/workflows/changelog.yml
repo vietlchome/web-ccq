@@ -1,0 +1,34 @@
+name: Cập nhật changelog
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "data/changelog.json"   # tránh vòng lặp khi chính file này thay đổi
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # cần toàn bộ lịch sử để đọc git log
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Sinh data/changelog.json từ git log
+        run: python gen_changelog.py
+
+      - name: Commit nếu có thay đổi
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/changelog.json
+          git diff --cached --quiet || git commit -m "Cập nhật changelog [skip ci]"
+          git push

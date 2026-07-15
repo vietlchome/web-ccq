@@ -27,6 +27,28 @@
     color: var(--text); border: 1px solid var(--border); border-radius: 8px;
     padding: 6px 12px; font-size: 13px; cursor: pointer; }
   header .theme-btn:hover { border-color: var(--blue); }
+  .header-actions { margin-left: auto; align-self: center; display: flex; gap: 8px; align-items: center; }
+  .header-actions .theme-btn { margin-left: 0; }
+  .bell-wrap { position: relative; }
+  .bell-btn { position: relative; padding: 6px 11px; }
+  .bell-dot { position: absolute; top: 4px; right: 5px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--red); border: 1px solid var(--panel); display: none; }
+  .bell-dot.show { display: block; }
+  .bell-panel { position: absolute; z-index: 1100; top: calc(100% + 6px); right: 0;
+    width: 320px; max-height: 60vh; overflow-y: auto; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 10px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+  .bell-head { font-size: 12px; font-weight: 600; color: var(--muted);
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; background: var(--panel); text-transform: uppercase; letter-spacing: .05em; }
+  .bell-list { padding: 4px 0; }
+  .bell-item { display: flex; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--border); }
+  .bell-item:last-child { border-bottom: none; }
+  .bell-item .dot { flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%;
+    background: var(--blue); margin-top: 5px; }
+  .bell-item .txt { min-width: 0; }
+  .bell-item .msg { font-size: 13px; color: var(--text); line-height: 1.35; }
+  .bell-item .time { font-size: 11px; color: var(--muted); margin-top: 2px; }
   .banner { background: #7c2d12; color: #fed7aa; padding: 8px 20px; font-size: 13px; }
   .layout { display: flex; gap: 16px; padding: 16px 20px; align-items: flex-start; }
   .sidebar { width: 270px; flex-shrink: 0; background: var(--panel);
@@ -183,7 +205,16 @@
 <header>
   <h1>📈 DCA EMA200 — Chứng chỉ quỹ</h1>
   <span class="sub">Dữ liệu NAV: Fmarket · cập nhật <b id="updatedAt">—</b></span>
-  <button id="themeToggle" class="theme-btn" title="Đổi nền sáng/tối">🌙 Tối</button>
+  <div class="header-actions">
+    <div class="bell-wrap">
+      <button id="bellToggle" class="theme-btn bell-btn" title="Cập nhật gần đây">🔔<span id="bellDot" class="bell-dot"></span></button>
+      <div id="bellPanel" class="bell-panel" hidden>
+        <div class="bell-head">🔔 Cập nhật gần đây</div>
+        <div id="bellList" class="bell-list"></div>
+      </div>
+    </div>
+    <button id="themeToggle" class="theme-btn" title="Đổi nền sáng/tối">🌙 Tối</button>
+  </div>
 </header>
 <div class="banner" id="sampleBanner" style="display:none">
   ⚠️ Đang hiển thị <b>DỮ LIỆU MẪU</b> (giả lập). Chạy <code>python fetch_data.py</code> để tải NAV thật từ Fmarket.
@@ -767,6 +798,55 @@ function applyPriceScale() {
 }
 
 // Đổi nền sáng/tối — cập nhật cả biến CSS (UI) lẫn màu chart canvas
+// ── Nút chuông: log cập nhật gần đây ──────────────────────────────
+// Danh sách được tải tự động từ data/changelog.json (sinh từ git log).
+// Mảng dưới đây chỉ là dự phòng khi không tải được file.
+let CHANGELOG = [
+  { date: "2026-07-15", msg: "Sửa badge MUA MẠNH ở nền sáng" },
+  { date: "2026-07-14", msg: "Thêm dark/light mode" },
+];
+const BELL_SEEN_KEY = "ccq_bell_seen";
+
+function bellLatestId() { return CHANGELOG.length ? CHANGELOG[0].date + "|" + CHANGELOG[0].msg : ""; }
+
+function renderBell() {
+  const list = el("bellList");
+  if (!list) return;
+  list.innerHTML = CHANGELOG.map(c => {
+    const d = new Date(c.date + "T00:00:00");
+    const ds = isNaN(d) ? c.date : d.toLocaleDateString("vi-VN", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return `<div class="bell-item"><span class="dot"></span><div class="txt">` +
+      `<div class="msg">${c.msg}</div><div class="time">${ds}</div></div></div>`;
+  }).join("");
+  const seen = localStorage.getItem(BELL_SEEN_KEY);
+  el("bellDot").classList.toggle("show", seen !== bellLatestId());
+}
+
+async function initBell() {
+  renderBell();
+  try {
+    const r = await fetch("data/changelog.json?t=" + Date.now());
+    if (r.ok) {
+      const data = await r.json();
+      if (Array.isArray(data) && data.length) { CHANGELOG = data; renderBell(); }
+    }
+  } catch (e) { /* giữ danh sách dự phòng */ }
+  const btn = el("bellToggle"), panel = el("bellPanel");
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const open = panel.hidden;
+    panel.hidden = !open;
+    if (open) {
+      localStorage.setItem(BELL_SEEN_KEY, bellLatestId());
+      el("bellDot").classList.remove("show");
+    }
+  });
+  document.addEventListener("click", (e) => {
+    if (!panel.hidden && !panel.contains(e.target) && e.target !== btn)
+      panel.hidden = true;
+  });
+}
+
 function applyTheme(name) {
   const t = CHART_THEMES[name] || CHART_THEMES.dark;
   document.body.classList.toggle("light", name === "light");
@@ -1158,9 +1238,13 @@ function holdingsPanel() {
   const alloc = (info.assetAlloc || []).filter(a => (a.assetPercent || 0) > 0);
   const stocks = (info.holdingsStock || []).slice().sort((a, b) => (b.netAssetPercent || 0) - (a.netAssetPercent || 0));
   const inds = (info.industries || []).slice().sort((a, b) => (b.assetPercent || 0) - (a.assetPercent || 0));
-  if (!alloc.length && !stocks.length && !inds.length)
-    return group("Danh mục — " + state.active,
-      [li("", `<span class="muted">Chưa có dữ liệu danh mục — chạy lại fetch_data.py</span>`)]);
+  if (!alloc.length && !stocks.length && !inds.length) {
+    const isEtf = String(info.assetType || "").toUpperCase().includes("ETF");
+    const msg = isEtf
+      ? "ETF niêm yết — theo dõi qua giá thị trường; danh mục theo rổ chỉ số cơ sở (không tải chi tiết)."
+      : "Chưa có dữ liệu danh mục — chạy lại fetch_data.py";
+    return group("Danh mục — " + state.active, [li("", `<span class="muted">${msg}</span>`)]);
+  }
 
   const palette = ["#3b82f6", "#22c55e", "#f59e0b", "#a78bfa", "#ef4444", "#14b8a6", "#ec4899", "#84cc16"];
   const colOf = (a, i) => (a.assetType && a.assetType.colorCode) || palette[i % palette.length];
@@ -1633,6 +1717,7 @@ async function loadAll() {
   applyTheme(localStorage.getItem(THEME_KEY) || "dark");
   el("themeToggle").addEventListener("click", () =>
     applyTheme(document.body.classList.contains("light") ? "dark" : "light"));
+  initBell();
   loadAll().catch(e => {
     (el("chartLabel") || document.body).innerHTML =
       `<div style="color:var(--red);font-size:12px">Không tải được dữ liệu (${e.message}). ` +
