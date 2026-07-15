@@ -341,7 +341,7 @@
         <th class="sortable" data-key="r5" data-tip="<b>5 năm</b> — Tăng trưởng NAV luỹ kế 5 năm. Gạch ngang nếu quỹ chưa đủ 5 năm.">5Y <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="cagr" data-tip="<b>CAGR — bình quân/năm</b><br>Lợi nhuận trung bình MỖI năm trong 3 năm, đã gộp lãi kép. Vd +15%/năm. Dùng để so công bằng giữa các khung thời gian khác độ dài.">CAGR <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="vol" data-tip="<b>Biến động (volatility)</b><br>NAV dao động lên xuống mạnh cỡ nào, quy theo năm. Càng cao càng nhiều sóng gió. Quỹ cổ phiếu VN thường 15–25%. Thấp hơn = đi êm hơn.">Biến động <span class="ic">ⓘ</span><span class="arr"></span></th>
-        <th class="sortable" data-key="mdd" data-tip="<b>Sụt giảm tối đa (max drawdown)</b><br>Mức lỗ sâu nhất từ đỉnh xuống đáy trong 3 năm (nếu lỡ mua đúng đỉnh). Vd −30% = từng có lúc mất 30%. Cho biết mức đau tối đa phải chịu đựng.">Sụt tối đa <span class="ic">ⓘ</span><span class="arr"></span></th>
+        <th class="sortable" data-key="mdd" data-tip="<b>Sụt giảm tối đa (max drawdown) — 5 năm</b><br>Mức lỗ sâu nhất từ đỉnh xuống đáy trong 5 năm gần nhất (bao cả cú sập 2022). Vd −40% = từng có lúc mất 40% nếu lỡ mua đúng đỉnh. Cho biết mức đau tối đa phải chịu.">Sụt tối đa <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="sharpe" data-tip="<b>Sharpe</b><br>Lợi nhuận trên mỗi đơn vị rủi ro: (lãi/năm − lãi phi rủi ro 5%) ÷ độ biến động. Trên 1 là tốt; dưới 0 nghĩa là lãi không bù nổi rủi ro. So các quỹ đã cân nhắc rủi ro.">Sharpe <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="beta" data-tip="<b>Beta (β) — độ nhạy với VN-Index</b><br>β=1: chạy cùng nhịp thị trường. β&gt;1: khuếch đại (chỉ số +10% thì quỹ ~+12% nếu β=1,2 — nhưng lúc giảm cũng mạnh hơn). β&lt;1: ít biến động hơn thị trường.">β <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="alpha" data-tip="<b>Alpha (α)</b><br>Lợi nhuận/năm quỹ tạo ra VƯỢT mức đáng lẽ có theo rủi ro (beta) của nó. α&gt;0 = giỏi hơn thị trường sau khi trừ rủi ro; α&lt;0 = kém hơn. Thể hiện năng lực thật của người quản lý quỹ.">α <span class="ic">ⓘ</span><span class="arr"></span></th>
@@ -352,8 +352,8 @@
     </table>
     </div>
     <p class="hint" style="margin-top:10px">
-      Chỉ số rủi ro (Biến động, Sụt tối đa, Sharpe, β, α) tính trên <b>3 năm gần nhất</b> từ NAV;
-      <sup class="star">*</sup> = quỹ chưa đủ 3 năm nên chỉ tham khảo. β/α so với VN-Index (đã bù độ trễ định giá NAV). Phí bán = mức khi giữ dài.
+      Biến động, Sharpe, β, α tính trên <b>3 năm gần nhất</b>; <b>Sụt tối đa tính trên 5 năm</b> (bao cú sập 2022) từ NAV.
+      <sup class="star">*</sup> = quỹ chưa đủ khung tương ứng (3 năm / 5 năm) nên chỉ tham khảo. β/α so với VN-Index (đã bù độ trễ định giá NAV). Phí bán = mức khi giữ dài.
       <b>Điểm</b> tổng hợp 0-100, trọng số: 5Y 15% · 3Y 20% · 1Y 10% · Sharpe 20% · Sụt tối đa 15% · Biến động 10% · α 5% · Phí bán 5%.
       Quỹ chưa đủ 5Y thì tiêu chí 5Y tính trung tính (0.5) — không cộng cũng không trừ điểm.
       (Chuẩn hóa trong nhóm quỹ đang có; chỉ để tham khảo, không phải khuyến nghị). Bấm dòng để xem chart quỹ đó.
@@ -1212,7 +1212,7 @@ function fundStatCard() {
     li("Xếp hạng tổng hợp", `#${idx + 1} / ${list.length}`, "blue", "Theo điểm tổng hợp ở tab So sánh"),
     li("Điểm tổng hợp", me.score.toFixed(0) + " / 100"),
     li("Biến động (3N)", me.vol == null ? "—" : me.vol.toFixed(1) + "%"),
-    li("Sụt tối đa (3N)", me.mdd == null ? "—" : me.mdd.toFixed(1) + "%", "neg"),
+    li("Sụt tối đa (5N)", me.mdd == null ? "—" : me.mdd.toFixed(1) + "%", "neg"),
     li("Sharpe / β", (me.sharpe == null ? "—" : me.sharpe.toFixed(2)) + " / " + (me.beta == null ? "—" : me.beta.toFixed(2)),
       "", "Sharpe = lợi nhuận/rủi ro · β = độ nhạy VN-Index"),
     li("Alpha (α)", me.alpha == null ? "—" : signFmt(me.alpha, "%/năm"), me.alpha == null ? "" : (me.alpha >= 0 ? "pos" : "neg")),
@@ -1457,16 +1457,18 @@ function fundMetrics(f) {
   const r3 = g("3Y");
   const cagr = r3 === null ? null : (Math.pow(1 + r3 / 100, 1 / 3) - 1) * 100;
   const w = windowRows(rows, 3), rets = dailyRets(w);
+  const w5 = windowRows(rows, 5);                          // sụt tối đa dùng khung 5 năm (bao cú sập 2022)
   const { alpha, beta } = alphaBeta(w, state.benchmark ? windowRows(state.benchmark.rows, 3) : null);
   const young = rows[0][0] > endMs - 3 * 365.25 * 864e5;   // chưa đủ 3 năm
+  const young5 = rows[0][0] > endMs - 5 * 365.25 * 864e5;  // chưa đủ 5 năm (cho sụt tối đa)
   const sf = sellFeeInfo(fd.info);
   return {
     sym: f.symbol, owner: shortOwner(f.owner || ""),
     ytd: g("YTD"), r1: g("1Y"), r3, r5: g("5Y"), cagr,
-    vol: volatility(rets), mdd: maxDrawdown(w), sharpe: sharpeRatio(rets),
+    vol: volatility(rets), mdd: maxDrawdown(w5), sharpe: sharpeRatio(rets),
     beta, alpha, sellFee: sf.fee, sellText: sf.text,
     riskName: (fd.info && fd.info.risk && fd.info.risk.riskLevel && fd.info.risk.riskLevel.name) || "",
-    young,
+    young, young5,
   };
 }
 
@@ -1507,11 +1509,13 @@ function renderCompare() {
     return (va - vb) * sort.dir;
   });
   const star = `<sup class="star" title="Chưa đủ 3 năm dữ liệu — chỉ số rủi ro chỉ tham khảo">*</sup>`;
+  const star5 = `<sup class="star" title="Chưa đủ 5 năm dữ liệu — sụt tối đa có thể chưa gồm cú sập 2022">*</sup>`;
   const num = (v, suf = "", cls = true) => v === null || v === undefined || isNaN(v) ? `<td class="muted">—</td>`
     : `<td class="${cls ? (v >= 0 ? "pos" : "neg") : ""}">${signFmt(v, suf)}</td>`;
   const fx = (v, dg, suf = "") => v === null || v === undefined || isNaN(v) ? "—" : v.toFixed(dg) + suf;
   body.innerHTML = list.map(d => {
     const s = d.young ? star : "";
+    const s5 = d.young5 ? star5 : "";
     const scoreBar = `<td><b>${d.score.toFixed(0)}</b><span class="scorebar"><i style="width:${Math.max(2, Math.min(100, d.score))}%"></i></span></td>`;
     const alphaCell = d.alpha === null || isNaN(d.alpha) ? `<td class="muted">—</td>`
       : `<td class="${d.alpha >= 0 ? "pos" : "neg"}">${signFmt(d.alpha, "%")}${s}</td>`;
@@ -1519,7 +1523,7 @@ function renderCompare() {
       <td><b>${d.sym}</b></td>
       ${num(d.ytd, "%")}${num(d.r1, "%")}${num(d.r3, "%")}${num(d.r5, "%")}${num(d.cagr, "%")}
       <td>${fx(d.vol, 1, "%")}${s}</td>
-      <td class="neg">${fx(d.mdd, 1, "%")}${s}</td>
+      <td class="neg">${fx(d.mdd, 1, "%")}${s5}</td>
       <td>${fx(d.sharpe, 2)}${s}</td>
       <td>${fx(d.beta, 2)}${s}</td>
       ${alphaCell}
