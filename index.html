@@ -722,17 +722,10 @@ function initChart() {
   state.overlay = new ChartOverlay();
   state.series.nav.attachPrimitive(state.overlay);
 
-  // ----- Cuộn trên TRỤC GIÁ để giãn/nén giá (kiểu TradingView) -----
-  state.priceZoom = 1;   // 1 = tự vừa khung; >1 = phóng to giá; <1 = thu nhỏ
-  // NAV điều khiển thang giá theo hệ số zoom; các đường khác không kéo thang (để zoom sạch)
-  const navProv = () => (orig) => {
-    const res = orig();
-    if (!res || !res.priceRange) return res;
-    const { minValue, maxValue } = res.priceRange;
-    const mid = (minValue + maxValue) / 2, half = (maxValue - minValue) / 2 / state.priceZoom;
-    return { priceRange: { minValue: mid - half, maxValue: mid + half }, margins: res.margins };
-  };
-  state.series.nav.applyOptions({ autoscaleInfoProvider: navProv() });
+  // ----- Điều khiển thang GIÁ thủ công: cuộn để giãn/nén, kéo dọc để dời (kiểu TradingView) -----
+  state.priceZoom = 1;     // >1 phóng to giá; <1 thu nhỏ
+  state.priceOffset = 0;   // dời thang giá lên/xuống (đơn vị giá)
+  applyPriceScale();       // NAV điều khiển thang, các đường khác không kéo thang
   for (const s of ["ema", "emaW", "bkeven", "gold"])
     state.series[s].applyOptions({ autoscaleInfoProvider: () => null });
   el("chart").addEventListener("wheel", e => {
@@ -741,19 +734,36 @@ function initChart() {
     try { axisW = c.priceScale("right").width() || 66; } catch (_) {}
     if (e.clientX >= rect.right - axisW) {           // con trỏ đang ở vùng trục giá
       e.preventDefault(); e.stopPropagation();
-      state.priceZoom *= e.deltaY < 0 ? 1.15 : 1 / 1.15;
-      state.priceZoom = Math.max(0.25, Math.min(30, state.priceZoom));
-      state.series.nav.applyOptions({ autoscaleInfoProvider: navProv() });  // ép tính lại thang
+      state.priceZoom = Math.max(0.25, Math.min(30, state.priceZoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
+      applyPriceScale();
     }
   }, { capture: true, passive: false });
 
   el("chart").addEventListener("dblclick", () => {
-    state.priceZoom = 1;                              // reset cả zoom giá
-    state.series.nav.applyOptions({ autoscaleInfoProvider: navProv() });
+    state.priceZoom = 1; state.priceOffset = 0;      // reset zoom + dời giá
+    applyPriceScale();
     c.timeScale().fitContent();
     setRangeActive(0);
   });
   initLineDrag();
+}
+
+// thang giá do NAV điều khiển: áp hệ số zoom + độ dời offset lên khoảng giá tự tính
+function navAutoscaleProvider() {
+  return (orig) => {
+    const res = orig();
+    if (!res || !res.priceRange) return res;
+    const { minValue, maxValue } = res.priceRange;
+    const mid = (minValue + maxValue) / 2, half = (maxValue - minValue) / 2 / (state.priceZoom || 1);
+    const off = state.priceOffset || 0;
+    const lo = mid - half + off, hi = mid + half + off;
+    state._prMin = lo; state._prMax = hi;            // lưu để đổi pixel→giá khi kéo dọc
+    return { priceRange: { minValue: lo, maxValue: hi }, margins: res.margins };
+  };
+}
+function applyPriceScale() {
+  if (state.series && state.series.nav)
+    state.series.nav.applyOptions({ autoscaleInfoProvider: navAutoscaleProvider() });
 }
 
 // Đổi nền sáng/tối — cập nhật cả biến CSS (UI) lẫn màu chart canvas
@@ -778,12 +788,13 @@ function applyTheme(name) {
 // Kéo vạch Bắt đầu / Kết thúc trên chart để đổi khoảng backtest
 function initLineDrag() {
   const cont = el("chart");
-  let dragLine = null;
+  let dragLine = null, vPan = null;
   const lineX = name => {
     const t = state.overlay.lines[name];
     return t === null ? null : state.chart.timeScale().timeToCoordinate(t);
   };
   const relX = e => e.clientX - cont.getBoundingClientRect().left;
+  const axisWidth = () => { try { return state.chart.priceScale("right").width() || 66; } catch (_) { return 66; } };
   cont.addEventListener("mousedown", e => {
     const x = relX(e);
     for (const name of ["start", "end"]) {
@@ -795,8 +806,19 @@ function initLineDrag() {
         break;
       }
     }
+    // không phải kéo vạch & không ở trên trục giá → bật kéo dọc giá (LWC vẫn tự kéo ngang thời gian)
+    if (!dragLine && x < cont.clientWidth - axisWidth())
+      vPan = { y: e.clientY, off: state.priceOffset || 0 };
   }, true);
   window.addEventListener("mousemove", e => {
+    if (vPan) {
+      const h = Math.max(1, cont.clientHeight - 28);           // trừ trục thời gian
+      const ppp = ((state._prMax || 1) - (state._prMin || 0)) / h;  // giá / pixel
+      state.priceOffset = vPan.off + (e.clientY - vPan.y) * ppp;    // kéo xuống → xem vùng giá cao hơn
+      cont.style.cursor = "grabbing";
+      if (!state._raf2) { state._raf2 = true; requestAnimationFrame(() => { state._raf2 = false; applyPriceScale(); }); }
+      return;
+    }
     const x = relX(e);
     if (!dragLine) {
       const near = ["start", "end"].some(n => {
@@ -822,6 +844,7 @@ function initLineDrag() {
     }
   });
   window.addEventListener("mouseup", () => {
+    if (vPan) { vPan = null; cont.style.cursor = ""; }
     if (!dragLine) return;
     dragLine = null;
     state.chart.applyOptions({ handleScroll: true, handleScale: true });
