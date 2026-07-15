@@ -1,42 +1,38 @@
 [
   {
     "date": "2026-07-15",
-    "msg": "Them 5 ETF pho bien"
+    "msg": "Thêm nút chuông hiển thị nhật ký cập nhật gần đây"
   },
   {
     "date": "2026-07-15",
-    "msg": "Sua badge MUA MANH o nen sang"
+    "msg": "Thêm 5 ETF phổ biến vào danh sách theo dõi"
   },
   {
     "date": "2026-07-15",
-    "msg": "Keo doc truc gia tren chart"
+    "msg": "Chỉnh màu nhãn \"MUA MẠNH\" cho rõ trên nền sáng"
   },
   {
     "date": "2026-07-15",
-    "msg": "Cuon truc gia kieu TradingView"
+    "msg": "Cho phép kéo và cuộn trục giá trên biểu đồ theo kiểu TradingView"
   },
   {
     "date": "2026-07-15",
-    "msg": "Sua beta (tre dinh gia), them cot 5Y, dark/light tooltip"
+    "msg": "Sửa cách tính beta (độ trễ định giá), thêm cột lợi nhuận 5 năm và tooltip theo nền sáng/tối"
   },
   {
     "date": "2026-07-14",
-    "msg": "Them dark/light mode"
+    "msg": "Thêm chế độ nền sáng/tối"
   },
   {
     "date": "2026-07-14",
-    "msg": "Them gia vang"
+    "msg": "Thêm giá vàng để so sánh với NAV các quỹ"
   },
   {
     "date": "2026-07-14",
-    "msg": "Them so sanh vang, bo price line"
+    "msg": "Căn chỉnh lưới KPI và nhóm quỹ cho thẳng hàng"
   },
   {
     "date": "2026-07-14",
-    "msg": "Dong bo luoi KPI/nhom cho thang hang"
-  },
-  {
-    "date": "2026-07-14",
-    "msg": "Web CCQ DCA EMA200"
+    "msg": "Ra mắt web theo dõi DCA EMA200 cho chứng chỉ quỹ"
   }
 ]
