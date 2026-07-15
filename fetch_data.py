@@ -450,6 +450,32 @@ def get_gold_history() -> list:
     return [[ts, dedup[ts]] for ts in sorted(dedup)]
 
 
+def get_btc_history() -> list:
+    """Giá Bitcoin (BTC/USD) theo ngày, thử nhiều nguồn. [[epoch_ms_ngày, close], ...]."""
+    sources = [
+        ("Yahoo BTC-USD", lambda: _gold_yahoo("BTC-USD")),
+        ("stooq btcusd", lambda: _gold_stooq("btcusd")),
+        ("stooq btc.v", lambda: _gold_stooq("btc.v")),
+    ]
+    rows, last_err = [], None
+    for name, fn in sources:
+        try:
+            rows = fn()
+            if rows:
+                print(f"  (nguồn {name})", flush=True)
+                break
+        except Exception as e:
+            last_err = e
+            print(f"  {name} lỗi: {e}", flush=True)
+    if not rows:
+        raise RuntimeError(f"Tất cả nguồn BTC đều lỗi. Cuối: {last_err}")
+    rows.sort(key=lambda x: x[0])
+    dedup = {}
+    for ts, c in rows:
+        dedup[ts] = c
+    return [[ts, dedup[ts]] for ts in sorted(dedup)]
+
+
 # ---- ETF niêm yết trên HOSE (lấy GIÁ thị trường từ nguồn chứng khoán) ----
 ETFS = [
     ("E1VFVN30", "DCVFM VN30 ETF"),
@@ -620,18 +646,39 @@ def main():
     except Exception as e:
         print(f"  LỖI VNINDEX: {e}")
 
-    # Giá vàng thế giới (không bắt buộc — để so sánh DCA)
+    # Giá vàng thế giới — vừa làm benchmark (GOLD.json), vừa là "tài sản" trong bảng (USD)
     try:
         print("Đang tải giá vàng (XAU/USD)...", flush=True)
         grows = get_gold_history()
         if grows:
             with open(os.path.join(DATA_DIR, "GOLD.json"), "w", encoding="utf-8") as f:
-                json.dump({"symbol": "XAUUSD", "name": "Vàng thế giới (XAU/USD)",
-                           "updatedAt": now_iso, "rows": grows},
-                          f, ensure_ascii=False, separators=(",", ":"))
-            print(f"  Vàng: {len(grows)} phiên, giá mới nhất {grows[-1][1]:,.2f}")
+                json.dump({"symbol": "GOLD", "name": "Vàng thế giới (XAU/USD)", "updatedAt": now_iso,
+                           "info": {"assetType": "Vàng", "owner": "Tài sản khác", "ccy": "USD"},
+                           "rows": grows}, f, ensure_ascii=False, separators=(",", ":"))
+            index.append({"symbol": "GOLD", "name": "Vàng thế giới (XAU/USD)", "owner": "Tài sản khác",
+                          "assetType": "Vàng", "ccy": "USD", "inceptionDate": None, "navChange": None,
+                          "count": len(grows), "firstDate": grows[0][0], "lastDate": grows[-1][0],
+                          "lastNav": grows[-1][1]})
+            print(f"  Vàng: {len(grows)} phiên, giá mới nhất {grows[-1][1]:,.2f} USD")
     except Exception as e:
         print(f"  LỖI Vàng: {e}")
+
+    # Bitcoin (BTC/USD) — tài sản tham chiếu (USD)
+    try:
+        print("Đang tải giá Bitcoin (BTC/USD)...", flush=True)
+        brows = get_btc_history()
+        if brows:
+            with open(os.path.join(DATA_DIR, "BTC.json"), "w", encoding="utf-8") as f:
+                json.dump({"symbol": "BTC", "name": "Bitcoin (BTC/USD)", "updatedAt": now_iso,
+                           "info": {"assetType": "Crypto", "owner": "Tài sản khác", "ccy": "USD"},
+                           "rows": brows}, f, ensure_ascii=False, separators=(",", ":"))
+            index.append({"symbol": "BTC", "name": "Bitcoin (BTC/USD)", "owner": "Tài sản khác",
+                          "assetType": "Crypto", "ccy": "USD", "inceptionDate": None, "navChange": None,
+                          "count": len(brows), "firstDate": brows[0][0], "lastDate": brows[-1][0],
+                          "lastNav": brows[-1][1]})
+            print(f"  BTC: {len(brows)} phiên, giá mới nhất {brows[-1][1]:,.2f} USD")
+    except Exception as e:
+        print(f"  LỖI BTC: {e}")
 
     with open(os.path.join(DATA_DIR, "index.json"), "w", encoding="utf-8") as f:
         json.dump({"updatedAt": now_iso, "funds": index}, f,

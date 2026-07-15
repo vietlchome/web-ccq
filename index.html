@@ -226,8 +226,8 @@
       <h3>Cấu hình mua định kỳ</h3>
       <div class="row"><label>Chu kỳ DCA (phiên)</label><input type="number" id="dcaDays" min="1" value="5"></div>
       <div class="hint">5 phiên ≈ 1 tuần · 22 phiên ≈ 1 tháng</div>
-      <div class="row"><label>Tiền mua cơ sở (nghìn VNĐ)</label><input type="number" id="buyAmount" min="1" step="100" value="1000"></div>
-      <div class="hint">Đơn vị nghìn đồng · vd 500 = 500.000đ, 1000 = 1 triệu</div>
+      <div class="row"><label id="buyLabel">Tiền mua cơ sở (nghìn VNĐ)</label><input type="number" id="buyAmount" min="1" step="100" value="1000"></div>
+      <div class="hint" id="buyHint">Đơn vị nghìn đồng · vd 500 = 500.000đ, 1000 = 1 triệu</div>
       <div class="row"><label>Chỉ mua khi NAV &lt; EMA200</label><input type="checkbox" id="onlyBuyBelowEMA"></div>
     </div>
     <div class="grp">
@@ -372,7 +372,7 @@
 // ============================================================
 
 const DEFAULTS = {
-  dcaDays: 5, buyAmount: 1000000, onlyBuyBelowEMA: false,
+  dcaDays: 5, buyAmount: 1000000, buyVnd: 1000, buyUsd: 50, onlyBuyBelowEMA: false,
   enableMult: false, stepPctBuy: 10,
   startDate: "2021-01-01", endDate: "", lumpsum: 0,
   targetMode: "qty", targetValue: 0, targetUnit: "trieu",
@@ -386,6 +386,15 @@ const CHART_THEMES = {
   light: { bg: "#ffffff", text: "#5b6b83", grid: "#eaedf2", border: "#d5dbe6", nav: "#0f172a" },
 };
 const nfVND = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 });
+const nfUSD = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
+// tiền tệ của tài sản đang chọn: quỹ mở & ETF = VND; vàng & BTC = USD
+function assetCcy(sym) {
+  const f = state.funds.find(x => x.symbol === (sym || state.active));
+  return (f && f.ccy) || "VND";
+}
+function fmtMoney(v, sym) {
+  return assetCcy(sym) === "USD" ? nfUSD.format(v) + " $" : nfVND.format(v) + " đ";
+}
 const nf2 = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 });
 
 // ---------- Chỉ báo ----------
@@ -593,7 +602,13 @@ const state = { funds: [], fundData: {}, active: null, chart: null, series: {},
 function getParams() {
   const p = {};
   p.dcaDays = Math.max(1, parseInt(el("dcaDays").value) || DEFAULTS.dcaDays);
-  p.buyAmount = Math.max(1000, (parseFloat(el("buyAmount").value) || DEFAULTS.buyAmount / 1000) * 1000);
+  // tiền mua cơ sở theo tiền tệ tài sản: USD (vàng/BTC) hoặc nghìn VNĐ (quỹ/ETF)
+  const usd = assetCcy() === "USD";
+  const raw = Math.max(0, parseFloat(el("buyAmount").value) || 0);
+  if (usd) state.buyUsd = raw > 0 ? raw : (state.buyUsd || DEFAULTS.buyUsd);
+  else state.buyVnd = raw > 0 ? raw : (state.buyVnd || DEFAULTS.buyVnd);
+  p.buyVnd = state.buyVnd; p.buyUsd = state.buyUsd;
+  p.buyAmount = usd ? state.buyUsd : state.buyVnd * 1000;   // hiệu lực, cùng đơn vị với giá tài sản
   p.onlyBuyBelowEMA = el("onlyBuyBelowEMA").checked;
   p.enableMult = el("enableMult").checked;
   p.stepPctBuy = Math.max(0.1, parseFloat(el("stepPctBuy").value) || DEFAULTS.stepPctBuy);
@@ -609,7 +624,10 @@ function getParams() {
   return p;
 }
 function setParams(p) {
-  el("dcaDays").value = p.dcaDays; el("buyAmount").value = p.buyAmount / 1000;
+  el("dcaDays").value = p.dcaDays;
+  state.buyVnd = p.buyVnd || (p.buyAmount ? p.buyAmount / 1000 : DEFAULTS.buyVnd);
+  state.buyUsd = p.buyUsd || DEFAULTS.buyUsd;
+  updateBuyUI();
   el("onlyBuyBelowEMA").checked = p.onlyBuyBelowEMA;
   el("enableMult").checked = p.enableMult; el("stepPctBuy").value = p.stepPctBuy;
   el("startDate").value = p.startDate; el("endDate").value = p.endDate || "";
@@ -1058,10 +1076,10 @@ function render() {
     ? `🥇 Vàng<br><b>${signFmt(goldBt.irrPct, "%")}</b>` : "";
 
   el("resultKpis").innerHTML =
-    kpi("Tổng tài sản", nfVND.format(bt.finalAssetValue) + " đ", "",
-      "vốn đã vào " + nfVND.format(bt.totalInvested) + " đ") +
+    kpi("Tổng tài sản", fmtMoney(bt.finalAssetValue), "",
+      "vốn đã vào " + fmtMoney(bt.totalInvested)) +
     kpi("% Lãi / Vốn", signFmt(bt.finalProfitPct, "%"), pnlCls,
-      "lãi ròng " + (netProfit >= 0 ? "+" : "") + nfVND.format(netProfit) + " đ", goldPnlExtra) +
+      "lãi ròng " + (netProfit >= 0 ? "+" : "") + fmtMoney(netProfit), goldPnlExtra) +
     kpi("CAGR thực (IRR)", irrText,
       bt.irrPct !== null ? (bt.irrPct >= 0 ? "pos" : "neg") : "",
       "money-weighted, số quá khứ", goldCagrExtra) +
@@ -1078,14 +1096,14 @@ function render() {
       li("Thời gian", durText, "", "Tính từ lần mua đầu tiên"),
     ]) +
     group("Vốn & nắm giữ", [
-      li("Tổng vốn đã vào", nfVND.format(bt.totalInvested) + " đ"),
-      li("Lượng CCQ " + sym, nf2.format(bt.totalUnits)),
-      li("Giá vốn TB", nfVND.format(bt.breakeven) + " đ", "blue",
-        "NAV trên mức này = đang lãi"),
-      li("NAV hiện tại", nfVND.format(bt.finalPrice) + " đ", "purplec"),
+      li("Tổng vốn đã vào", fmtMoney(bt.totalInvested)),
+      li("Lượng " + (assetCcy() === "USD" ? "đơn vị" : "CCQ") + " " + sym, nf2.format(bt.totalUnits)),
+      li("Giá vốn TB", fmtMoney(bt.breakeven), "blue",
+        "Giá trên mức này = đang lãi"),
+      li((assetCcy() === "USD" ? "Giá hiện tại" : "NAV hiện tại"), fmtMoney(bt.finalPrice), "purplec"),
     ]) +
     group("Hiệu quả & rủi ro", [
-      li("Lãi ròng", (netProfit >= 0 ? "+" : "") + nfVND.format(netProfit) + " đ", pnlCls),
+      li("Lãi ròng", (netProfit >= 0 ? "+" : "") + fmtMoney(netProfit), pnlCls),
       li("% Lãi / Vốn", signFmt(bt.finalProfitPct, "%"), pnlCls),
       li("Đáy P&L / Vốn", bt.minPnlPct === null ? "—" : signFmt(bt.minPnlPct, "%"),
         bt.minPnlPct !== null && bt.minPnlPct < 0 ? "neg" : "pos",
@@ -1204,13 +1222,15 @@ function metricsList() {
 function fundStatCard() {
   const sym = state.active, fd = state.fundData[sym], info = fd && fd.info;
   if (!fd) return "";
-  const list = metricsList().slice().sort((a, b) => b.score - a.score);
-  const idx = list.findIndex(d => d.sym === sym);
-  if (idx < 0) return "";
-  const me = list[idx];
+  const all = metricsList();
+  const me = all.find(d => d.sym === sym);
+  if (!me) return "";
+  // xếp hạng chỉ tính trong nhóm quỹ/ETF (loại vàng/BTC)
+  const scored = all.filter(d => !d.noScore).slice().sort((a, b) => b.score - a.score);
+  const rank = me.noScore ? null : scored.findIndex(d => d.sym === sym);
   const rows = [
-    li("Xếp hạng tổng hợp", `#${idx + 1} / ${list.length}`, "blue", "Theo điểm tổng hợp ở tab So sánh"),
-    li("Điểm tổng hợp", me.score.toFixed(0) + " / 100"),
+    li("Xếp hạng tổng hợp", me.noScore ? "— (tham chiếu)" : `#${rank + 1} / ${scored.length}`, "blue", "Theo điểm tổng hợp ở tab So sánh"),
+    li("Điểm tổng hợp", me.score === null ? "—" : me.score.toFixed(0) + " / 100"),
     li("Biến động (3N)", me.vol == null ? "—" : me.vol.toFixed(1) + "%"),
     li("Sụt tối đa (5N)", me.mdd == null ? "—" : me.mdd.toFixed(1) + "%", "neg"),
     li("Sharpe / β", (me.sharpe == null ? "—" : me.sharpe.toFixed(2)) + " / " + (me.beta == null ? "—" : me.beta.toFixed(2)),
@@ -1239,10 +1259,12 @@ function holdingsPanel() {
   const stocks = (info.holdingsStock || []).slice().sort((a, b) => (b.netAssetPercent || 0) - (a.netAssetPercent || 0));
   const inds = (info.industries || []).slice().sort((a, b) => (b.assetPercent || 0) - (a.assetPercent || 0));
   if (!alloc.length && !stocks.length && !inds.length) {
-    const isEtf = String(info.assetType || "").toUpperCase().includes("ETF");
-    const msg = isEtf
+    const at = String(info.assetType || "").toUpperCase();
+    const msg = at.includes("ETF")
       ? "ETF niêm yết — theo dõi qua giá thị trường; danh mục theo rổ chỉ số cơ sở (không tải chi tiết)."
-      : "Chưa có dữ liệu danh mục — chạy lại fetch_data.py";
+      : (assetCcy(state.active) === "USD"
+        ? "Tài sản tham chiếu (USD) — không có danh mục; theo dõi qua giá."
+        : "Chưa có dữ liệu danh mục — chạy lại fetch_data.py");
     return group("Danh mục — " + state.active, [li("", `<span class="muted">${msg}</span>`)]);
   }
 
@@ -1324,7 +1346,7 @@ function renderOverview(p) {
     const fav = state.favs.has(d.sym);
     return `<tr class="clickable" data-sym="${d.sym}">
       <td><span class="fav${fav ? " on" : ""}" data-fav="${d.sym}" title="${fav ? "Bỏ yêu thích" : "Đánh dấu yêu thích"}">${fav ? "★" : "☆"}</span><b>${d.sym}</b></td>
-      <td>${nfVND.format(d.nav)}</td>
+      <td>${assetCcy(d.sym) === "USD" ? nfUSD.format(d.nav) + " $" : nfVND.format(d.nav)}</td>
       <td>${fmtDate(d.date)}</td>
       ${perf(d.ytd)}${perf(d.y1)}${perf(d.y3)}${perf(d.y5)}
       <td class="${d.pctD >= 0 ? "pos" : "neg"}">${signFmt(d.pctD, "%")}${d.dOK ? "" : star}</td>
@@ -1472,7 +1494,7 @@ function fundMetrics(f) {
     vol: volatility(rets), mdd: maxDrawdown(w5), sharpe: sharpeRatio(rets),
     beta, alpha, sellFee: sf.fee, sellText: sf.text,
     riskName: (fd.info && fd.info.risk && fd.info.risk.riskLevel && fd.info.risk.riskLevel.name) || "",
-    young, young5,
+    young, young5, noScore: assetCcy(f.symbol) === "USD",   // vàng/BTC: tham chiếu, không chấm điểm
   };
 }
 
@@ -1485,8 +1507,9 @@ const CMP_CRITERIA = [
   { key: "sellFee", w: 0.05, dir: -1 },
 ];
 function addComposite(list) {
+  const base = list.filter(d => !d.noScore);   // chuẩn hoá CHỈ trên quỹ/ETF (loại vàng/BTC để không méo thang)
   for (const c of CMP_CRITERIA) {
-    const vals = list.map(d => d[c.key]).filter(v => v !== null && v !== undefined && !isNaN(v));
+    const vals = base.map(d => d[c.key]).filter(v => v !== null && v !== undefined && !isNaN(v));
     const min = Math.min(...vals), max = Math.max(...vals), span = max - min;
     c._norm = d => {
       const v = d[c.key];
@@ -1496,7 +1519,7 @@ function addComposite(list) {
       return c.dir === 1 ? n : 1 - n;
     };
   }
-  for (const d of list) d.score = CMP_CRITERIA.reduce((s, c) => s + c.w * c._norm(d), 0) * 100;
+  for (const d of list) d.score = d.noScore ? null : CMP_CRITERIA.reduce((s, c) => s + c.w * c._norm(d), 0) * 100;
   return list;
 }
 
@@ -1520,7 +1543,9 @@ function renderCompare() {
   body.innerHTML = list.map(d => {
     const s = d.young ? star : "";
     const s5 = d.young5 ? star5 : "";
-    const scoreBar = `<td><b>${d.score.toFixed(0)}</b><span class="scorebar"><i style="width:${Math.max(2, Math.min(100, d.score))}%"></i></span></td>`;
+    const scoreBar = d.score === null
+      ? `<td class="muted" title="Vàng/BTC là tham chiếu — không chấm điểm chung với quỹ">—</td>`
+      : `<td><b>${d.score.toFixed(0)}</b><span class="scorebar"><i style="width:${Math.max(2, Math.min(100, d.score))}%"></i></span></td>`;
     const alphaCell = d.alpha === null || isNaN(d.alpha) ? `<td class="muted">—</td>`
       : `<td class="${d.alpha >= 0 ? "pos" : "neg"}">${signFmt(d.alpha, "%")}${s}</td>`;
     return `<tr class="clickable" data-sym="${d.sym}">
@@ -1593,8 +1618,22 @@ function setActive(sym) {
   state.active = sym;
   const inp = el("fundSearch");
   if (inp) { inp.value = ""; inp.placeholder = "🔎 " + sym + " — gõ để đổi quỹ"; }
+  updateBuyUI();              // đổi tiền tệ ô "Tiền mua cơ sở" theo tài sản (VNĐ/USD) TRƯỚC khi render
   render();
   applyRange(state.rangeMonths !== undefined ? state.rangeMonths : 24);
+}
+
+// cập nhật nhãn/đơn vị ô "Tiền mua cơ sở" theo tiền tệ của tài sản đang chọn
+function updateBuyUI() {
+  const usd = assetCcy() === "USD";
+  const lbl = el("buyLabel"), hint = el("buyHint"), inp = el("buyAmount");
+  if (!inp) return;
+  if (lbl) lbl.textContent = usd ? "Tiền mua cơ sở (USD)" : "Tiền mua cơ sở (nghìn VNĐ)";
+  if (hint) hint.innerHTML = usd
+    ? "Đơn vị USD · vd 50 = 50 USD/lần (vàng/BTC tính theo USD)"
+    : "Đơn vị nghìn đồng · vd 500 = 500.000đ, 1000 = 1 triệu";
+  inp.value = usd ? (state.buyUsd || DEFAULTS.buyUsd) : (state.buyVnd || DEFAULTS.buyVnd);
+  inp.step = usd ? 10 : 100;
 }
 
 // rút gọn tên công ty quản lý quỹ để làm nhãn nhóm
