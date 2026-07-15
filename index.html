@@ -339,7 +339,8 @@
         <th class="sortable" data-key="r1" data-tip="<b>1 năm</b> — Tăng trưởng NAV trong 12 tháng gần nhất.">1Y <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="r3" data-tip="<b>3 năm</b> — Tăng trưởng NAV luỹ kế cả giai đoạn 3 năm (tổng, không phải mỗi năm).">3Y <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="r5" data-tip="<b>5 năm</b> — Tăng trưởng NAV luỹ kế 5 năm. Gạch ngang nếu quỹ chưa đủ 5 năm.">5Y <span class="ic">ⓘ</span><span class="arr"></span></th>
-        <th class="sortable" data-key="cagr" data-tip="<b>CAGR — bình quân/năm</b><br>Lợi nhuận trung bình MỖI năm trong 3 năm, đã gộp lãi kép. Vd +15%/năm. Dùng để so công bằng giữa các khung thời gian khác độ dài.">CAGR <span class="ic">ⓘ</span><span class="arr"></span></th>
+        <th class="sortable" data-key="cagr" data-tip="<b>CAGR 5 năm — bình quân/năm</b><br>Lợi nhuận trung bình MỖI năm trong 5 năm (đã gộp lãi kép, bao cú sập 2022). Vd +8%/năm. Thật hơn 3 năm vì không bị đẩy lên bởi giai đoạn hồi phục sau đáy. Quỹ chưa đủ 5 năm để gạch ngang.">CAGR 5Y <span class="ic">ⓘ</span><span class="arr"></span></th>
+        <th class="sortable" data-key="cagrTL" data-tip="<b>CAGR từ khi lập quỹ</b><br>Lợi nhuận bình quân MỖI năm tính từ ngày quỹ ra đời đến nay. Cho cảm nhận dài hạn cả đời quỹ (lưu ý: quỹ già/trẻ trải qua giai đoạn thị trường khác nhau).">CAGR TL <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="vol" data-tip="<b>Biến động (volatility)</b><br>NAV dao động lên xuống mạnh cỡ nào, quy theo năm. Càng cao càng nhiều sóng gió. Quỹ cổ phiếu VN thường 15–25%. Thấp hơn = đi êm hơn.">Biến động <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="mdd" data-tip="<b>Sụt giảm tối đa (max drawdown) — 5 năm</b><br>Mức lỗ sâu nhất từ đỉnh xuống đáy trong 5 năm gần nhất (bao cả cú sập 2022). Vd −40% = từng có lúc mất 40% nếu lỡ mua đúng đỉnh. Cho biết mức đau tối đa phải chịu.">Sụt tối đa <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="sharpe" data-tip="<b>Sharpe</b><br>Lợi nhuận trên mỗi đơn vị rủi ro: (lãi/năm − lãi phi rủi ro 5%) ÷ độ biến động. Trên 1 là tốt; dưới 0 nghĩa là lãi không bù nổi rủi ro. So các quỹ đã cân nhắc rủi ro.">Sharpe <span class="ic">ⓘ</span><span class="arr"></span></th>
@@ -1454,8 +1455,11 @@ function fundMetrics(f) {
   if (!fd || !fd.rows || fd.rows.length < 2) return null;
   const rows = fd.rows, endMs = rows[rows.length - 1][0];
   const g = k => growthPct(rows, frameStartMs(endMs, k), endMs);
-  const r3 = g("3Y");
-  const cagr = r3 === null ? null : (Math.pow(1 + r3 / 100, 1 / 3) - 1) * 100;
+  const r3 = g("3Y"), r5 = g("5Y");
+  const cagr = r5 === null ? null : (Math.pow(1 + r5 / 100, 1 / 5) - 1) * 100;   // CAGR 5 năm (qua trọn chu kỳ)
+  const inceptYrs = (endMs - rows[0][0]) / (365.25 * 864e5);
+  const cagrTL = inceptYrs >= 0.5                                                // CAGR bình quân từ khi lập quỹ
+    ? (Math.pow(rows[rows.length - 1][1] / rows[0][1], 1 / inceptYrs) - 1) * 100 : null;
   const w = windowRows(rows, 3), rets = dailyRets(w);
   const w5 = windowRows(rows, 5);                          // sụt tối đa dùng khung 5 năm (bao cú sập 2022)
   const { alpha, beta } = alphaBeta(w, state.benchmark ? windowRows(state.benchmark.rows, 3) : null);
@@ -1464,7 +1468,7 @@ function fundMetrics(f) {
   const sf = sellFeeInfo(fd.info);
   return {
     sym: f.symbol, owner: shortOwner(f.owner || ""),
-    ytd: g("YTD"), r1: g("1Y"), r3, r5: g("5Y"), cagr,
+    ytd: g("YTD"), r1: g("1Y"), r3, r5, cagr, cagrTL,
     vol: volatility(rets), mdd: maxDrawdown(w5), sharpe: sharpeRatio(rets),
     beta, alpha, sellFee: sf.fee, sellText: sf.text,
     riskName: (fd.info && fd.info.risk && fd.info.risk.riskLevel && fd.info.risk.riskLevel.name) || "",
@@ -1521,7 +1525,7 @@ function renderCompare() {
       : `<td class="${d.alpha >= 0 ? "pos" : "neg"}">${signFmt(d.alpha, "%")}${s}</td>`;
     return `<tr class="clickable" data-sym="${d.sym}">
       <td><b>${d.sym}</b></td>
-      ${num(d.ytd, "%")}${num(d.r1, "%")}${num(d.r3, "%")}${num(d.r5, "%")}${num(d.cagr, "%")}
+      ${num(d.ytd, "%")}${num(d.r1, "%")}${num(d.r3, "%")}${num(d.r5, "%")}${num(d.cagr, "%")}${num(d.cagrTL, "%")}
       <td>${fx(d.vol, 1, "%")}${s}</td>
       <td class="neg">${fx(d.mdd, 1, "%")}${s5}</td>
       <td>${fx(d.sharpe, 2)}${s}</td>

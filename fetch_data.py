@@ -590,6 +590,9 @@ def main():
             if not rows:
                 print(f"  {tk}: không có dữ liệu, bỏ qua.")
                 continue
+            # nguồn CK thường trả giá theo NGHÌN đồng (vd 35 = 35.000đ) → quy về VNĐ cho khớp NAV quỹ
+            if rows[-1][1] < 1000:
+                rows = [[t, v * 1000] for t, v in rows]
             out = {"symbol": tk, "name": nm, "updatedAt": now_iso,
                    "info": {"assetType": "ETF (niêm yết)", "owner": "ETF"}, "rows": rows}
             with open(os.path.join(DATA_DIR, f"{tk}.json"), "w", encoding="utf-8") as f:
