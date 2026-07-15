@@ -721,7 +721,35 @@ function initChart() {
     priceLineVisible: false, lastValueVisible: false });
   state.overlay = new ChartOverlay();
   state.series.nav.attachPrimitive(state.overlay);
+
+  // ----- Cuộn trên TRỤC GIÁ để giãn/nén giá (kiểu TradingView) -----
+  state.priceZoom = 1;   // 1 = tự vừa khung; >1 = phóng to giá; <1 = thu nhỏ
+  // NAV điều khiển thang giá theo hệ số zoom; các đường khác không kéo thang (để zoom sạch)
+  const navProv = () => (orig) => {
+    const res = orig();
+    if (!res || !res.priceRange) return res;
+    const { minValue, maxValue } = res.priceRange;
+    const mid = (minValue + maxValue) / 2, half = (maxValue - minValue) / 2 / state.priceZoom;
+    return { priceRange: { minValue: mid - half, maxValue: mid + half }, margins: res.margins };
+  };
+  state.series.nav.applyOptions({ autoscaleInfoProvider: navProv() });
+  for (const s of ["ema", "emaW", "bkeven", "gold"])
+    state.series[s].applyOptions({ autoscaleInfoProvider: () => null });
+  el("chart").addEventListener("wheel", e => {
+    const rect = el("chart").getBoundingClientRect();
+    let axisW = 66;
+    try { axisW = c.priceScale("right").width() || 66; } catch (_) {}
+    if (e.clientX >= rect.right - axisW) {           // con trỏ đang ở vùng trục giá
+      e.preventDefault(); e.stopPropagation();
+      state.priceZoom *= e.deltaY < 0 ? 1.15 : 1 / 1.15;
+      state.priceZoom = Math.max(0.25, Math.min(30, state.priceZoom));
+      state.series.nav.applyOptions({ autoscaleInfoProvider: navProv() });  // ép tính lại thang
+    }
+  }, { capture: true, passive: false });
+
   el("chart").addEventListener("dblclick", () => {
+    state.priceZoom = 1;                              // reset cả zoom giá
+    state.series.nav.applyOptions({ autoscaleInfoProvider: navProv() });
     c.timeScale().fitContent();
     setRangeActive(0);
   });
