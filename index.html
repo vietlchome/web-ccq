@@ -1632,4 +1632,98 @@ function buildFundList(query) {
   let html = "";
   for (const o of owners) {
     html += `<div class="grphead">${shortOwner(o)} (${groups[o].length})</div>`;
-    for (const f of groups[o].sort((a, b) => a.symbol.localeCompare(b.symbol)
+    for (const f of groups[o].sort((a, b) => a.symbol.localeCompare(b.symbol))) {
+      const idx = state._listSyms.length;
+      html += `<div class="item" data-sym="${f.symbol}" data-idx="${idx}">`
+        + `<span class="sym">${f.symbol}</span><span class="nm">${f.name || ""}</span></div>`;
+      state._listSyms.push(f.symbol);
+    }
+  }
+  return html;
+}
+function initFundPicker() {
+  const inp = el("fundSearch"), list = el("fundList");
+  state._hl = -1;
+  const applyHl = () => {
+    const items = list.querySelectorAll(".item");
+    items.forEach((it, k) => it.classList.toggle("hl", k === state._hl));
+    if (items[state._hl]) items[state._hl].scrollIntoView({ block: "nearest" });
+  };
+  const rerender = (resetHl) => {
+    list.innerHTML = buildFundList(inp.value);
+    state._hl = resetHl ? (state._listSyms.length ? 0 : -1)
+      : Math.max(0, state._listSyms.indexOf(state.active));
+    applyHl();
+  };
+  const pick = sym => { setActive(sym); inp.blur(); list.classList.remove("open"); };
+  inp.addEventListener("focus", () => { inp.value = ""; rerender(false); list.classList.add("open"); });
+  inp.addEventListener("input", () => { rerender(true); list.classList.add("open"); });
+  inp.addEventListener("blur", () => setTimeout(() => list.classList.remove("open"), 150));
+  inp.addEventListener("keydown", e => {
+    const n = state._listSyms.length;
+    if (e.key === "ArrowDown") { e.preventDefault(); state._hl = Math.min(n - 1, state._hl + 1); applyHl(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); state._hl = Math.max(0, state._hl - 1); applyHl(); }
+    else if (e.key === "Enter") { e.preventDefault(); if (state._hl >= 0) pick(state._listSyms[state._hl]); }
+    else if (e.key === "Escape") { inp.blur(); }
+  });
+  list.addEventListener("mousedown", e => {
+    const it = e.target.closest(".item");
+    if (it) { e.preventDefault(); pick(it.dataset.sym); }
+  });
+}
+
+async function loadAll() {
+  const idx = await (await fetch("data/index.json?t=" + Date.now())).json();
+  state.funds = idx.funds;
+  const isSample = idx.updatedAt === "SAMPLE";
+  el("sampleBanner").style.display = isSample ? "" : "none";
+  el("updatedAt").textContent = isSample ? "DỮ LIỆU MẪU"
+    : new Date(idx.updatedAt).toLocaleString("vi-VN");
+  await Promise.all(idx.funds.map(async f => {
+    state.fundData[f.symbol] = await (await fetch(`data/${f.symbol}.json?t=` + Date.now())).json();
+  }));
+  // Benchmark VNINDEX (không bắt buộc — thiếu file thì bỏ qua)
+  try {
+    const r = await fetch("data/VNINDEX.json?t=" + Date.now());
+    state.benchmark = r.ok ? await r.json() : null;
+  } catch (e) { state.benchmark = null; }
+  // Giá vàng (không bắt buộc)
+  try {
+    const r = await fetch("data/GOLD.json?t=" + Date.now());
+    state.gold = r.ok ? await r.json() : null;
+  } catch (e) { state.gold = null; }
+  // ô tìm kiếm/đổi quỹ (gom nhóm theo công ty, gõ để lọc)
+  initFundPicker();
+  initOverviewSort();
+  initCompareSort();
+  initTooltips();
+  document.querySelectorAll(".stab").forEach(b =>
+    b.addEventListener("click", () => switchSection(b.dataset.sec)));
+  setActive(idx.funds[0].symbol);
+}
+
+// ---------- init ----------
+(function init() {
+  const saved = localStorage.getItem(LS_KEY);
+  const p = { ...DEFAULTS, ...(saved ? JSON.parse(saved) : {}) };
+  setParams(p);
+  el("btnReset").addEventListener("click", () => { setParams({ ...DEFAULTS }); render(); });
+  document.querySelectorAll(".sidebar input, .sidebar select").forEach(i =>
+    i.addEventListener("change", render));
+  document.querySelectorAll("#rangeBar button").forEach(b =>
+    b.addEventListener("click", () => applyRange(+b.dataset.m)));
+  state.rangeMonths = 24;
+  initChart();
+  applyTheme(localStorage.getItem(THEME_KEY) || "dark");
+  el("themeToggle").addEventListener("click", () =>
+    applyTheme(document.body.classList.contains("light") ? "dark" : "light"));
+  initBell();
+  loadAll().catch(e => {
+    (el("chartLabel") || document.body).innerHTML =
+      `<div style="color:var(--red);font-size:12px">Không tải được dữ liệu (${e.message}). ` +
+      `Cần chạy qua HTTP server, không mở trực tiếp file:// — xem README.</div>`;
+  });
+})();
+</script>
+</body>
+</html>
