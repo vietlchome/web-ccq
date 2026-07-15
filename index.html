@@ -161,7 +161,7 @@
     pointer-events: none; opacity: 0; transition: opacity .1s; text-transform: none;
     letter-spacing: normal; font-weight: 400; white-space: normal; }
   .tip.show { opacity: 1; }
-  .tip b { color: #fff; }
+  .tip b { color: var(--text); }
   /* panel danh mục quỹ */
   .sg .subh { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin: 8px 0 3px; }
   .alloc { display: flex; height: 14px; border-radius: 5px; overflow: hidden; margin: 6px 0 8px; background: var(--border); }
@@ -304,10 +304,10 @@
     <table class="overview cmp2">
       <thead><tr id="cmpHead">
         <th class="sortable" data-key="sym">Quỹ <span class="arr"></span></th>
-        <th class="sortable" data-key="owner">Cty <span class="arr"></span></th>
         <th class="sortable" data-key="ytd" data-tip="<b>YTD</b> — Tăng trưởng NAV tính từ đầu năm nay đến hiện tại.">YTD <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="r1" data-tip="<b>1 năm</b> — Tăng trưởng NAV trong 12 tháng gần nhất.">1Y <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="r3" data-tip="<b>3 năm</b> — Tăng trưởng NAV luỹ kế cả giai đoạn 3 năm (tổng, không phải mỗi năm).">3Y <span class="ic">ⓘ</span><span class="arr"></span></th>
+        <th class="sortable" data-key="r5" data-tip="<b>5 năm</b> — Tăng trưởng NAV luỹ kế 5 năm. Gạch ngang nếu quỹ chưa đủ 5 năm.">5Y <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="cagr" data-tip="<b>CAGR — bình quân/năm</b><br>Lợi nhuận trung bình MỖI năm trong 3 năm, đã gộp lãi kép. Vd +15%/năm. Dùng để so công bằng giữa các khung thời gian khác độ dài.">CAGR <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="vol" data-tip="<b>Biến động (volatility)</b><br>NAV dao động lên xuống mạnh cỡ nào, quy theo năm. Càng cao càng nhiều sóng gió. Quỹ cổ phiếu VN thường 15–25%. Thấp hơn = đi êm hơn.">Biến động <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="mdd" data-tip="<b>Sụt giảm tối đa (max drawdown)</b><br>Mức lỗ sâu nhất từ đỉnh xuống đáy trong 3 năm (nếu lỡ mua đúng đỉnh). Vd −30% = từng có lúc mất 30%. Cho biết mức đau tối đa phải chịu đựng.">Sụt tối đa <span class="ic">ⓘ</span><span class="arr"></span></th>
@@ -322,9 +322,10 @@
     </div>
     <p class="hint" style="margin-top:10px">
       Chỉ số rủi ro (Biến động, Sụt tối đa, Sharpe, β, α) tính trên <b>3 năm gần nhất</b> từ NAV;
-      <sup class="star">*</sup> = quỹ chưa đủ 3 năm nên chỉ tham khảo. β/α so với VN-Index. Phí bán = mức khi giữ dài.
-      <b>Điểm</b> tổng hợp 0-100, trọng số: 3Y 25% · 1Y 15% · Sharpe 20% · Sụt tối đa 15% · Biến động 10% · α 10% · Phí bán 5%
-      (chuẩn hóa trong nhóm quỹ đang có; chỉ để tham khảo, không phải khuyến nghị). Bấm dòng để xem chart quỹ đó.
+      <sup class="star">*</sup> = quỹ chưa đủ 3 năm nên chỉ tham khảo. β/α so với VN-Index (đã bù độ trễ định giá NAV). Phí bán = mức khi giữ dài.
+      <b>Điểm</b> tổng hợp 0-100, trọng số: 5Y 15% · 3Y 20% · 1Y 10% · Sharpe 20% · Sụt tối đa 15% · Biến động 10% · α 5% · Phí bán 5%.
+      Quỹ chưa đủ 5Y thì tiêu chí 5Y tính trung tính (0.5) — không cộng cũng không trừ điểm.
+      (Chuẩn hóa trong nhóm quỹ đang có; chỉ để tham khảo, không phải khuyến nghị). Bấm dòng để xem chart quỹ đó.
     </p>
     </div>
   </div>
@@ -1274,10 +1275,26 @@ function alphaBeta(fundRows, idxRows) {
     if (pf > 0 && pi > 0) { fr.push(cf / pf - 1); ir.push(ci / pi - 1); }
   }
   if (fr.length < 20) return { alpha: null, beta: null };
-  const mf = sAvg(fr), mi = sAvg(ir);
+  // NAV quỹ mở thường định giá TRỄ 1 phiên (fund[t] ứng với thị trường t-1).
+  // Thử khớp cùng ngày (lag 0) và trễ 1 phiên (lag 1), chọn cái tương quan cao hơn.
+  const pearson = (a, b) => {
+    const ma = sAvg(a), mb = sAvg(b);
+    let cov = 0, va = 0, vb = 0;
+    for (let i = 0; i < a.length; i++) { cov += (a[i] - ma) * (b[i] - mb); va += (a[i] - ma) ** 2; vb += (b[i] - mb) ** 2; }
+    return va > 0 && vb > 0 ? cov / Math.sqrt(va * vb) : 0;
+  };
+  const align = lag => {
+    const a = [], b = [];
+    for (let i = 0; i < fr.length; i++) { const j = i - lag; if (j >= 0 && j < ir.length) { a.push(fr[i]); b.push(ir[j]); } }
+    return { a, b, c: pearson(a, b) };
+  };
+  const a0 = align(0), a1 = align(1);
+  const use = Math.abs(a1.c) > Math.abs(a0.c) ? a1 : a0;
+  const A = use.a, B = use.b;
+  const mf = sAvg(A), mi = sAvg(B);
   let cov = 0, vi = 0;
-  for (let i = 0; i < fr.length; i++) { cov += (fr[i] - mf) * (ir[i] - mi); vi += (ir[i] - mi) ** 2; }
-  cov /= (fr.length - 1); vi /= (fr.length - 1);
+  for (let i = 0; i < A.length; i++) { cov += (A[i] - mf) * (B[i] - mi); vi += (B[i] - mi) ** 2; }
+  cov /= (A.length - 1); vi /= (A.length - 1);
   const beta = vi > 0 ? cov / vi : null;
   const alpha = beta === null ? null : ((mf * TRADE_DAYS - RF_RATE) - beta * (mi * TRADE_DAYS - RF_RATE)) * 100;
   return { alpha, beta };
@@ -1310,7 +1327,7 @@ function fundMetrics(f) {
   const sf = sellFeeInfo(fd.info);
   return {
     sym: f.symbol, owner: shortOwner(f.owner || ""),
-    ytd: g("YTD"), r1: g("1Y"), r3, cagr,
+    ytd: g("YTD"), r1: g("1Y"), r3, r5: g("5Y"), cagr,
     vol: volatility(rets), mdd: maxDrawdown(w), sharpe: sharpeRatio(rets),
     beta, alpha, sellFee: sf.fee, sellText: sf.text,
     riskName: (fd.info && fd.info.risk && fd.info.risk.riskLevel && fd.info.risk.riskLevel.name) || "",
@@ -1319,10 +1336,11 @@ function fundMetrics(f) {
 }
 
 // điểm tổng hợp 0-100 (chuẩn hóa min-max theo từng tiêu chí, có trọng số)
+// Quỹ thiếu dữ liệu 1 tiêu chí (vd chưa đủ 5Y) → tiêu chí đó tính trung tính 0.5 (không thưởng/phạt).
 const CMP_CRITERIA = [
-  { key: "r3", w: 0.25, dir: 1 }, { key: "r1", w: 0.15, dir: 1 },
+  { key: "r5", w: 0.15, dir: 1 }, { key: "r3", w: 0.20, dir: 1 }, { key: "r1", w: 0.10, dir: 1 },
   { key: "sharpe", w: 0.20, dir: 1 }, { key: "mdd", w: 0.15, dir: 1 },
-  { key: "vol", w: 0.10, dir: -1 }, { key: "alpha", w: 0.10, dir: 1 },
+  { key: "vol", w: 0.10, dir: -1 }, { key: "alpha", w: 0.05, dir: 1 },
   { key: "sellFee", w: 0.05, dir: -1 },
 ];
 function addComposite(list) {
@@ -1364,8 +1382,7 @@ function renderCompare() {
       : `<td class="${d.alpha >= 0 ? "pos" : "neg"}">${signFmt(d.alpha, "%")}${s}</td>`;
     return `<tr class="clickable" data-sym="${d.sym}">
       <td><b>${d.sym}</b></td>
-      <td class="muted" style="font-size:11px">${d.owner}</td>
-      ${num(d.ytd, "%")}${num(d.r1, "%")}${num(d.r3, "%")}${num(d.cagr, "%")}
+      ${num(d.ytd, "%")}${num(d.r1, "%")}${num(d.r3, "%")}${num(d.r5, "%")}${num(d.cagr, "%")}
       <td>${fx(d.vol, 1, "%")}${s}</td>
       <td class="neg">${fx(d.mdd, 1, "%")}${s}</td>
       <td>${fx(d.sharpe, 2)}${s}</td>
