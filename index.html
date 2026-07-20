@@ -93,8 +93,10 @@
   .kpi-extra b { font-size: 15px; font-weight: 700; }
   .statgroups { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: 10px; margin-top: 10px; }
+  .kpis > *, .statgroups > * { min-width: 0; }   /* không cho ô phình theo nội dung dài (vd BTC +9.630%) */
   .sg { background: var(--panel); border: 1px solid var(--border);
-    border-radius: 10px; padding: 10px 14px 8px; }
+    border-radius: 10px; padding: 10px 14px 8px; overflow: hidden; }
+  .sg .tblwrap { overflow-x: auto; }             /* bảng quá rộng thì cuộn trong thẻ, không tràn ra ngoài */
   .sg h4 { font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
     color: var(--muted); margin: 0 0 4px; border-bottom: 1px solid var(--border); padding-bottom: 5px; }
   .sg .li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0;
@@ -1190,23 +1192,25 @@ function benchmarkTable() {
   }
   const fRows = fd.rows, iRows = bm.rows;
   const endMs = fRows[fRows.length - 1][0];               // ngày NAV mới nhất của quỹ
+  // rút gọn số cực lớn (vd BTC 10Y +9.630% → bỏ thập phân) để bảng khỏi phình
+  const cpct = (v, suf) => (v >= 0 ? "+" : "") + (Math.abs(v) >= 1000 ? nfVND.format(Math.round(v)) : nf2.format(v)) + suf;
   const cell = v => v === null ? naCol
-    : `<span class="${v >= 0 ? "pos" : "neg"}">${signFmt(v, "%")}</span>`;
+    : `<span class="${v >= 0 ? "pos" : "neg"}">${cpct(v, "%")}</span>`;
   const rows = frames.map(([label, key]) => {
     const startMs = frameStartMs(endMs, key);
     const gf = growthPct(fRows, startMs, endMs);
     const gi = growthPct(iRows, startMs, endMs);
     const perf = (gf === null || gi === null) ? null : gf - gi;
     const perfCell = perf === null ? `<td class="perf">${naCol}</td>`
-      : `<td class="perf ${perf >= 0 ? "pos" : "neg"}">${signFmt(perf, "")}</td>`;
+      : `<td class="perf ${perf >= 0 ? "pos" : "neg"}">${cpct(perf, "")}</td>`;
     return `<tr><td>${label}</td><td>${cell(gf)}</td><td>${cell(gi)}</td>${perfCell}</tr>`;
   }).join("");
   return `<div class="sg">
     <h4>Tăng trưởng NAV so với VN-Index</h4>
-    <table class="cmptbl">
+    <div class="tblwrap"><table class="cmptbl">
       <thead><tr><th>Khung</th><th>${sym}</th><th>VN-Index</th><th title="Chênh lệch = quỹ − VN-Index (điểm %)">Hiệu suất</th></tr></thead>
       <tbody>${rows}</tbody>
-    </table></div>`;
+    </table></div></div>`;
 }
 
 // tính chỉ số + điểm tổng hợp cho mọi quỹ, cache lại (không phụ thuộc tham số DCA)
