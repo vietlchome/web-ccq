@@ -2,8 +2,9 @@ name: Cập nhật NAV hàng ngày
 
 on:
   schedule:
-    # 12:30 UTC = 19:30 giờ VN — sau khi Fmarket công bố NAV trong ngày
-    - cron: "30 12 * * 1-5"
+    # 12:30 UTC = 19:30 giờ VN — chạy MỖI NGÀY (gồm T7/CN) để BTC (24/7) luôn cập nhật.
+    # NAV quỹ & vàng không đổi cuối tuần → chỉ commit khi có thay đổi nên không tốn kém.
+    - cron: "30 12 * * *"
   workflow_dispatch: {}   # cho phép chạy tay từ tab Actions
 
 permissions:
