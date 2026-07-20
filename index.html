@@ -230,13 +230,17 @@
       <div class="hint">5 phiên ≈ 1 tuần · 22 phiên ≈ 1 tháng</div>
       <div class="row"><label id="buyLabel">Tiền mua cơ sở (nghìn VNĐ)</label><input type="number" id="buyAmount" min="1" step="100" value="1000"></div>
       <div class="hint" id="buyHint">Đơn vị nghìn đồng · vd 500 = 500.000đ, 1000 = 1 triệu</div>
-      <div class="row"><label>Chỉ mua khi NAV &lt; EMA200</label><input type="checkbox" id="onlyBuyBelowEMA"></div>
+      <div class="row" style="display:block">
+        <label style="display:block;margin-bottom:6px">Chế độ mua</label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;padding:3px 0"><input type="radio" name="buyMode" value="always" style="width:auto;margin:0"> Mua mọi lúc (trên &amp; dưới EMA200)</label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;padding:3px 0"><input type="radio" name="buyMode" value="belowOnly" style="width:auto;margin:0"> Chỉ mua khi NAV &lt; EMA200</label>
+      </div>
     </div>
     <div class="grp">
       <h3>Hệ số nhân động</h3>
       <div class="row"><label>Bật hệ số nhân</label><input type="checkbox" id="enableMult"></div>
-      <div class="row"><label>Bước nhảy % EMA</label><input type="number" id="stepPctBuy" min="0.1" step="0.1" value="10"></div>
-      <div class="hint">NAV dưới EMA200 mỗi X% → +1x. VD bước 10%: dưới 25% → mua x2.5. Trên EMA = 1x.</div>
+      <div class="row"><label>Bước nhảy % EMA</label><input type="number" id="stepPctBuy" min="0.1" step="0.1" value="3"></div>
+      <div class="hint">Bước nhảy nhớ riêng từng tài sản (BTC gợi ý 5%, quỹ/ETF/vàng 3%).<br>Dưới EMA200: mỗi bước rẻ hơn → +1x (vd bước 3%: dưới 9% → x3).<br>Trên EMA200 (chế độ "Mua mọi lúc"): mỗi bước đắt hơn → −0.1x, sàn 0.1x.</div>
     </div>
     <div class="grp">
       <h3>Thời gian backtest</h3>
@@ -374,8 +378,8 @@
 // ============================================================
 
 const DEFAULTS = {
-  dcaDays: 5, buyAmount: 1000000, buyVnd: 1000, buyUsd: 50, onlyBuyBelowEMA: false,
-  enableMult: false, stepPctBuy: 10,
+  dcaDays: 5, buyAmount: 1000000, buyVnd: 1000, buyUsd: 50, buyMode: "always",
+  enableMult: false, stepPctBuy: 3, stepStd: 3, stepBtc: 5,
   startDate: "2021-01-01", endDate: "", lumpsum: 0,
   targetMode: "qty", targetValue: 0, targetUnit: "trieu",
   showEmaW: true, showGold: false, labelMode: "all",
@@ -505,19 +509,12 @@ function runBacktest(rows, p) {
     // Tín hiệu mua: dựa trên phiên TRƯỚC (fix lookahead như Pine)
     const prevClose = i > 0 ? closes[i - 1] : null;
     const prevEma = i > 0 ? ema[i - 1] : null;
-    const emaCondition = p.onlyBuyBelowEMA
-      ? (prevClose !== null && prevClose < prevEma)
-      : true;
     const dueDca = lastBuySession === null || (i - lastBuySession) >= p.dcaDays;
 
-    // Hệ số nhân theo % dưới EMA200 (chỉ tăng khi giá DƯỚI EMA)
-    let mult = 1.0;
-    if (p.enableMult && prevClose !== null && prevClose < prevEma) {
-      const steps = ((prevEma - prevClose) / prevEma * 100) / p.stepPctBuy;
-      mult = Math.max(1.0, Math.round(steps * 10) / 10);
-    }
+    // Hệ số nhân theo vị trí giá phiên trước so với EMA200 (mult = 0 → không mua)
+    const mult = buyMultiplier(prevClose, prevEma, p);
 
-    if (inRange && dueDca && emaCondition) {
+    if (inRange && dueDca && mult > 0) {
       lastBuySession = i;
       if (firstBuyTime === null) firstBuyTime = t;
       const money = p.buyAmount * mult;
@@ -580,6 +577,24 @@ function runBacktest(rows, p) {
 
 // Trạng thái hôm nay của 1 quỹ (cho bảng tổng quan):
 // dùng NAV chốt gần nhất làm close[1] cho lệnh phiên kế tiếp
+// BTC dùng bước nhảy riêng (biến động cao hơn); vàng/quỹ/ETF dùng bước chuẩn
+function isBtcAsset(sym) { return (sym || state.active) === "BTC"; }
+
+// Hệ số mua theo vị trí giá so với EMA200 (giá & ema của phiên đang xét).
+// Dưới EMA: càng rẻ mua càng nhiều (+1x mỗi bước, sàn 1x).
+// Tại/trên EMA: chế độ "belowOnly" → 0 (không mua); "always" + bật hệ số → giảm 0.1x mỗi bước, sàn 0.1x; tắt hệ số → 1x.
+function buyMultiplier(close, ema, p) {
+  if (close == null || ema == null || ema <= 0) return p.buyMode === "belowOnly" ? 0 : 1;
+  const pct = (close - ema) / ema * 100;               // >0 trên EMA, ≤0 dưới/bằng
+  if (pct < 0) {                                        // DƯỚI EMA
+    if (!p.enableMult) return 1;
+    return Math.max(1, Math.round((-pct / p.stepPctBuy) * 10) / 10);
+  }
+  if (p.buyMode === "belowOnly") return 0;             // TẠI/TRÊN EMA — chỉ mua dưới → bỏ qua
+  if (!p.enableMult) return 1;
+  return Math.max(0.1, Math.round((1 - 0.1 * (pct / p.stepPctBuy)) * 10) / 10);
+}
+
 function todayStatus(rows, p) {
   const closes = rows.map(r => r[1]);
   const ema = emaSeries(closes, 200);
@@ -590,10 +605,7 @@ function todayStatus(rows, p) {
   const pctW = eW !== null ? (c - eW) / eW * 100 : null;
   const below = c < e;
   const belowW = eW !== null && c < eW;
-  let mult = 1.0;
-  if (p.enableMult && below) {
-    mult = Math.max(1.0, Math.round((-pctD / p.stepPctBuy) * 10) / 10);
-  }
+  const mult = buyMultiplier(c, e, p);
   return { nav: c, ema: e, emaW: eW, pctD, pctW, below, belowW, mult, date: rows[i][0] };
 }
 
@@ -611,9 +623,16 @@ function getParams() {
   else state.buyVnd = raw > 0 ? raw : (state.buyVnd || DEFAULTS.buyVnd);
   p.buyVnd = state.buyVnd; p.buyUsd = state.buyUsd;
   p.buyAmount = usd ? state.buyUsd : state.buyVnd * 1000;   // hiệu lực, cùng đơn vị với giá tài sản
-  p.onlyBuyBelowEMA = el("onlyBuyBelowEMA").checked;
+  const bmEl = document.querySelector('input[name="buyMode"]:checked');
+  p.buyMode = bmEl ? bmEl.value : DEFAULTS.buyMode;
   p.enableMult = el("enableMult").checked;
-  p.stepPctBuy = Math.max(0.1, parseFloat(el("stepPctBuy").value) || DEFAULTS.stepPctBuy);
+  // bước nhảy nhớ riêng theo tài sản: BTC dùng stepBtc, còn lại dùng stepStd
+  const btc = isBtcAsset();
+  const rawStep = Math.max(0.1, parseFloat(el("stepPctBuy").value) || 0);
+  if (btc) state.stepBtc = rawStep > 0 ? rawStep : (state.stepBtc || DEFAULTS.stepBtc);
+  else state.stepStd = rawStep > 0 ? rawStep : (state.stepStd || DEFAULTS.stepStd);
+  p.stepStd = state.stepStd; p.stepBtc = state.stepBtc;
+  p.stepPctBuy = btc ? state.stepBtc : state.stepStd;   // hiệu lực cho tài sản đang chọn
   p.startDate = el("startDate").value;
   p.endDate = el("endDate").value;
   p.lumpsum = Math.max(0, parseFloat(el("lumpsum").value) || 0);
@@ -629,9 +648,13 @@ function setParams(p) {
   el("dcaDays").value = p.dcaDays;
   state.buyVnd = p.buyVnd || (p.buyAmount ? p.buyAmount / 1000 : DEFAULTS.buyVnd);
   state.buyUsd = p.buyUsd || DEFAULTS.buyUsd;
-  updateBuyUI();
-  el("onlyBuyBelowEMA").checked = p.onlyBuyBelowEMA;
-  el("enableMult").checked = p.enableMult; el("stepPctBuy").value = p.stepPctBuy;
+  state.stepStd = p.stepStd || p.stepPctBuy || DEFAULTS.stepStd;
+  state.stepBtc = p.stepBtc || DEFAULTS.stepBtc;
+  updateBuyUI();   // đặt lại ô "Tiền mua" & "Bước nhảy" theo tài sản đang chọn
+  const bm = p.buyMode || (p.onlyBuyBelowEMA ? "belowOnly" : "always");   // tương thích bản cũ
+  const rb = document.querySelector('input[name="buyMode"][value="' + bm + '"]');
+  if (rb) rb.checked = true;
+  el("enableMult").checked = p.enableMult;
   el("startDate").value = p.startDate; el("endDate").value = p.endDate || "";
   el("lumpsum").value = p.lumpsum;
   el("targetMode").value = p.targetMode; el("targetValue").value = p.targetValue;
@@ -1057,18 +1080,18 @@ function render() {
   const curBelow = bt.finalPrice < emaLast;
   const pctVsEma = (bt.finalPrice - emaLast) / emaLast * 100;
   let dcaVal, dcaCls, dcaSub;
-  if (p.onlyBuyBelowEMA && !curBelow) {
+  if (p.buyMode === "belowOnly" && !curBelow) {
     dcaVal = "CHƯA ĐỦ ĐK MUA";
     dcaCls = "orangec";
     dcaSub = `NAV trên EMA200 ${signFmt(pctVsEma, "%")} — chỉ mua khi NAV dưới EMA200`;
   } else if (bt.nextDcaIn === 0) {
     dcaVal = "ĐẾN KỲ MUA";
     dcaCls = "pos";
-    dcaSub = `chu kỳ ${p.dcaDays} phiên` + (p.onlyBuyBelowEMA ? " · đang dưới EMA200 ✓" : "");
+    dcaSub = `chu kỳ ${p.dcaDays} phiên` + (p.buyMode === "belowOnly" ? " · đang dưới EMA200 ✓" : "");
   } else {
     dcaVal = `còn ${bt.nextDcaIn} phiên`;
     dcaCls = "";
-    dcaSub = `chu kỳ ${p.dcaDays} phiên` + (p.onlyBuyBelowEMA ? " · đang dưới EMA200 ✓" : "");
+    dcaSub = `chu kỳ ${p.dcaDays} phiên` + (p.buyMode === "belowOnly" ? " · đang dưới EMA200 ✓" : "");
   }
 
   // So sánh với vàng (nếu bật) — DCA cùng cách vào vàng
@@ -1317,7 +1340,7 @@ function renderOverview(p) {
       sym: f.symbol, nav: st.nav, date: st.date,
       ytd: g("YTD"), y1: g("1Y"), y3: g("3Y"), y5: g("5Y"),
       pctD: st.pctD, pctW: st.pctW, mult: st.mult,
-      rank: (p.onlyBuyBelowEMA && !st.below) ? -1 : st.belowW ? 2 : st.below ? 1 : 0,
+      rank: (p.buyMode === "belowOnly" && !st.below) ? -1 : st.belowW ? 2 : st.below ? 1 : 0,
       dOK: emaDayEnough(fd.rows), wOK: emaWeekEnough(fd.rows), st,
     });
   }
@@ -1340,7 +1363,7 @@ function renderOverview(p) {
     : `<td class="${v >= 0 ? "pos" : "neg"}">${signFmt(v, "%")}</td>`;
   body.innerHTML = ordered.map(d => {
     // điều kiện mua: nếu "chỉ mua dưới EMA200" mà NAV không dưới EMA200 → không mua
-    const buyOK = !p.onlyBuyBelowEMA || d.st.below;
+    const buyOK = p.buyMode !== "belowOnly" || d.st.below;
     const suggest = !buyOK ? `<span class="badge watch">QUAN SÁT</span>`
       : d.rank === 2 ? `<span class="badge strong">MUA MẠNH</span>`
         : d.rank === 1 ? `<span class="badge buy">MUA</span>`
@@ -1638,6 +1661,11 @@ function updateBuyUI() {
     : "Đơn vị nghìn đồng · vd 500 = 500.000đ, 1000 = 1 triệu";
   inp.value = usd ? (state.buyUsd || DEFAULTS.buyUsd) : (state.buyVnd || DEFAULTS.buyVnd);
   inp.step = usd ? 10 : 100;
+  // bước nhảy gợi ý theo tài sản: BTC = stepBtc (mặc định 5), còn lại = stepStd (mặc định 3)
+  const stepInp = el("stepPctBuy");
+  if (stepInp) stepInp.value = isBtcAsset()
+    ? (state.stepBtc || DEFAULTS.stepBtc)
+    : (state.stepStd || DEFAULTS.stepStd);
 }
 
 // rút gọn tên công ty quản lý quỹ để làm nhãn nhóm
