@@ -206,7 +206,7 @@
 
 <header>
   <h1>📈 DCA EMA200 — Chứng chỉ quỹ</h1>
-  <span class="sub">Dữ liệu NAV: Fmarket · cập nhật <b id="updatedAt">—</b></span>
+  <span class="sub" id="dataStatus">—</span>
   <div class="header-actions">
     <div class="bell-wrap">
       <button id="bellToggle" class="theme-btn bell-btn" title="Cập nhật gần đây">🔔<span id="bellDot" class="bell-dot"></span></button>
@@ -1723,13 +1723,30 @@ function initFundPicker() {
   });
 }
 
+// Trạng thái cập nhật giá — tách theo loại tài sản (cadence khác nhau)
+function renderDataStatus(funds, updatedAt) {
+  const box = el("dataStatus");
+  if (!box) return;
+  const fmtD = ms => { const d = new Date(ms); return `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`; };
+  const maxD = arr => arr.length ? fmtD(Math.max(...arr.map(f => f.lastDate))) : null;
+  const groups = [
+    ["Quỹ mở (Fmarket)", funds.filter(f => f.owner !== "ETF" && (f.ccy || "VND") === "VND")],
+    ["ETF (HOSE)", funds.filter(f => f.owner === "ETF")],
+    ["Vàng (USD)", funds.filter(f => f.symbol === "GOLD")],
+    ["BTC (USD)", funds.filter(f => f.symbol === "BTC")],
+  ];
+  const parts = groups.filter(g => g[1].length).map(([label, arr]) => `${label}: <b>${maxD(arr)}</b>`);
+  box.innerHTML = "Cập nhật giá — " + parts.join(" · ");
+  box.title = "Lần chạy cập nhật: " + new Date(updatedAt).toLocaleString("vi-VN");
+}
+
 async function loadAll() {
   const idx = await (await fetch("data/index.json?t=" + Date.now())).json();
   state.funds = idx.funds;
   const isSample = idx.updatedAt === "SAMPLE";
   el("sampleBanner").style.display = isSample ? "" : "none";
-  el("updatedAt").textContent = isSample ? "DỮ LIỆU MẪU"
-    : new Date(idx.updatedAt).toLocaleString("vi-VN");
+  if (isSample) el("dataStatus").textContent = "DỮ LIỆU MẪU";
+  else renderDataStatus(idx.funds, idx.updatedAt);
   await Promise.all(idx.funds.map(async f => {
     state.fundData[f.symbol] = await (await fetch(`data/${f.symbol}.json?t=` + Date.now())).json();
   }));
