@@ -176,6 +176,59 @@
   .scorebar { display: inline-block; width: 46px; height: 5px; background: var(--border);
     border-radius: 3px; margin-left: 6px; vertical-align: middle; overflow: hidden; }
   .scorebar i { display: block; height: 100%; background: var(--blue); }
+  /* tab Giải thích điểm */
+  .exp-pick { display: flex; align-items: center; gap: 10px; margin: 4px 0 14px; }
+  .exp-pick input { background: var(--panel2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 8px 12px; font-size: 14px; width: 320px; max-width: 90vw; }
+  .exp-pick input:focus { outline: none; border-color: var(--blue); }
+  .exp-body { max-width: 1500px; }
+  .exp-cols { display: flex; gap: 22px; align-items: flex-start; flex-wrap: wrap; }
+  .exp-main { flex: 1 1 620px; min-width: 0; }
+  .exp-side { flex: 0 1 380px; min-width: 280px; background: var(--panel);
+    border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.12); }
+  .exp-side h4 { margin: 14px 0 6px; font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .06em; font-weight: 700; }
+  .exp-side h4:first-child { margin-top: 0; }
+  .exp-side .exp-verdict { margin: 0; }
+  .exp-side .exp-flags { margin-top: 0; }
+  /* khối điểm to trong panel phải */
+  .exp-score { padding-bottom: 14px; margin-bottom: 2px; border-bottom: 1px solid var(--border); }
+  .exp-score .row1 { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .exp-score .num { font-size: 44px; font-weight: 800; line-height: 1; letter-spacing: -1px; }
+  .exp-score .num small { font-size: 16px; color: var(--muted); font-weight: 500; letter-spacing: 0; }
+  .exp-score .rankbadge { font-size: 12.5px; font-weight: 600; color: var(--blue);
+    background: rgba(59,130,246,.12); border: 1px solid var(--blue);
+    padding: 3px 10px; border-radius: 999px; white-space: nowrap; }
+  .exp-score .sbar { height: 8px; background: var(--border); border-radius: 4px;
+    overflow: hidden; margin-top: 12px; }
+  .exp-score .sbar i { display: block; height: 100%; border-radius: 4px; }
+  .exp-score .sublabel { font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .exp-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; margin: 2px 0 12px; }
+  .exp-head .fsym { font-size: 22px; font-weight: 700; }
+  .exp-head .fname { font-size: 13px; color: var(--muted); }
+  .exp-verdict { font-size: 13px; margin: 2px 0 12px; line-height: 1.65; }
+  .exp-verdict .vline { display: flex; gap: 8px; margin: 0 0 7px; }
+  .exp-verdict .vline:last-child { margin-bottom: 0; }
+  .exp-verdict .vlabel { flex: 0 0 76px; padding-top: 2px;
+    font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase;
+    letter-spacing: .04em; }
+  .exp-verdict .vline > span:last-child, .exp-verdict .vline .vbody { flex: 1; min-width: 0; }
+  .exp-flags div { margin-bottom: 7px; padding-left: 14px; position: relative; }
+  .exp-flags div::before { content: "•"; position: absolute; left: 2px; color: var(--muted); }
+  .exp-flags div:last-child { margin-bottom: 0; }
+  table.expTbl { border-collapse: collapse; width: 100%; margin: 6px 0 10px; }
+  table.expTbl th, table.expTbl td { padding: 7px 10px; border-bottom: 1px solid var(--border);
+    font-size: 13px; text-align: right; white-space: nowrap; }
+  table.expTbl th { background: var(--panel2); color: var(--muted); font-size: 11px;
+    text-transform: uppercase; letter-spacing: .04em; }
+  table.expTbl td:first-child, table.expTbl th:first-child { text-align: left; white-space: normal; }
+  table.expTbl td.note { text-align: left; color: var(--muted); font-size: 12px; white-space: normal; }
+  .pbar { display: inline-block; width: 90px; height: 6px; background: var(--border);
+    border-radius: 3px; margin-left: 8px; vertical-align: middle; overflow: hidden; }
+  .pbar i { display: block; height: 100%; }
+  .exp-flags { font-size: 12.5px; color: var(--muted); line-height: 1.65; margin-top: 10px; }
+  .exp-flags b { color: var(--text); }
   /* tooltip giải thích chỉ số */
   .ic { font-size: 10px; color: var(--muted); margin: 0 2px; cursor: help; }
   th.sortable:hover .ic { color: var(--blue); }
@@ -308,6 +361,7 @@
     <div class="secttabs">
       <button class="stab active" data-sec="overview">Tổng quan</button>
       <button class="stab" data-sec="compare">So sánh &amp; xếp hạng</button>
+      <button class="stab" data-sec="explain">Giải thích điểm</button>
     </div>
 
     <div id="secOverview">
@@ -352,7 +406,7 @@
         <th class="sortable" data-key="beta" data-tip="<b>Beta (β) — độ nhạy với VN-Index</b><br>β=1: chạy cùng nhịp thị trường. β&gt;1: khuếch đại (chỉ số +10% thì quỹ ~+12% nếu β=1,2 — nhưng lúc giảm cũng mạnh hơn). β&lt;1: ít biến động hơn thị trường.">β <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="alpha" data-tip="<b>Alpha (α)</b><br>Lợi nhuận/năm quỹ tạo ra VƯỢT mức đáng lẽ có theo rủi ro (beta) của nó. α&gt;0 = giỏi hơn thị trường sau khi trừ rủi ro; α&lt;0 = kém hơn. Thể hiện năng lực thật của người quản lý quỹ.">α <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="sellFee" data-tip="<b>Phí bán</b><br>Phí khi bán chứng chỉ quỹ. Vd 2%→0% (≥12 tháng): giữ ngắn mất 2%, giữ đủ lâu miễn phí. Cột này hiện mức khi giữ dài (hợp với DCA giữ lâu). NAV đã trừ phí quản lý nên không tính lại.">Phí bán <span class="ic">ⓘ</span><span class="arr"></span></th>
-        <th class="sortable" data-key="score" data-tip="<b>Điểm tổng hợp (0–100)</b><br>Gộp 8 tiêu chí có trọng số: 5Y 15% · 3Y 20% · 1Y 10% · Sharpe 20% · Sụt tối đa 15% · Biến động 10% · α 5% · Phí bán 5%. Chuẩn hoá trong nhóm quỹ hiện có. Cao = tổng thể tốt. Quỹ chưa đủ 5Y thì tiêu chí 5Y tính trung tính (0.5). Trọng số chủ quan — chỉ để tham khảo.">Điểm <span class="ic">ⓘ</span><span class="arr"></span></th>
+        <th class="sortable" data-key="score" data-tip="<b>Điểm tổng hợp (0–100)</b><br>Gộp 8 tiêu chí có trọng số: 5Y 15% · 3Y 20% · 1Y 10% · Sharpe 20% · Sụt tối đa 15% · Biến động 10% · α 5% · Phí bán 5%. Chuẩn hoá theo THỨ HẠNG (percentile) trong nhóm quỹ hiện có nên không bị outlier kéo méo thang. Cao = tổng thể tốt. Quỹ &lt;1 năm dữ liệu: chưa chấm điểm. Quỹ 1–3 năm: các tiêu chí rủi ro (Sharpe, sụt tối đa, biến động, α) tính trung tính vì cửa sổ quá ngắn. Tiêu chí thiếu dữ liệu (vd chưa đủ 5Y) cũng tính trung tính. Trọng số chủ quan — chỉ để tham khảo.">Điểm <span class="ic">ⓘ</span><span class="arr"></span></th>
       </tr></thead>
       <tbody id="cmpBody"></tbody>
     </table>
@@ -360,10 +414,21 @@
     <p class="hint" style="margin-top:10px">
       Biến động, Sharpe, β, α tính trên <b>3 năm gần nhất</b>; <b>Sụt tối đa tính trên 5 năm</b> từ NAV.
       <sup class="star">*</sup> = quỹ chưa đủ khung tương ứng (3 năm / 5 năm) nên chỉ tham khảo. β/α so với VN-Index (đã bù độ trễ định giá NAV). Phí bán = mức khi giữ dài.
-      <b>Điểm</b> tổng hợp 0-100, trọng số: 5Y 15% · 3Y 20% · 1Y 10% · Sharpe 20% · Sụt tối đa 15% · Biến động 10% · α 5% · Phí bán 5%.
-      Quỹ chưa đủ 5Y thì tiêu chí 5Y tính trung tính (0.5) — không cộng cũng không trừ điểm.
-      (Chuẩn hóa trong nhóm quỹ đang có; chỉ để tham khảo, không phải khuyến nghị). Bấm dòng để xem chart quỹ đó.
+      Biến động/Sharpe/α quy năm theo <b>tần suất cập nhật NAV thực tế</b> của từng quỹ (ngày ~252 kỳ, tuần ~52 kỳ) để không thổi phồng chỉ số của quỹ NAV tuần.
+      <b>Điểm</b> tổng hợp 0-100, trọng số: 5Y 15% · 3Y 20% · 1Y 10% · Sharpe 20% · Sụt tối đa 15% · Biến động 10% · α 5% · Phí bán 5%,
+      chuẩn hoá theo thứ hạng (percentile) trong nhóm quỹ đang có.
+      Quỹ &lt;1 năm dữ liệu chưa chấm điểm; quỹ 1–3 năm các tiêu chí rủi ro tính trung tính (0.5); tiêu chí thiếu dữ liệu (vd chưa đủ 5Y) cũng trung tính.
+      (Chỉ để tham khảo, không phải khuyến nghị). Bấm dòng để xem chart quỹ đó.
     </p>
+    </div>
+
+    <div id="secExplain" style="display:none">
+      <div class="exp-pick">
+        <label for="expInput"><b>Chọn quỹ:</b></label>
+        <input id="expInput" list="expList" placeholder="Gõ mã hoặc tên quỹ (vd VESAF)..." autocomplete="off">
+        <datalist id="expList"></datalist>
+      </div>
+      <div id="expBody" class="exp-body"><p class="hint">Gõ mã quỹ ở trên (hoặc bấm một dòng ở tab So sánh) để xem giải thích điểm.</p></div>
     </div>
   </div>
 
@@ -1252,11 +1317,11 @@ function fundStatCard() {
   const all = metricsList();
   const me = all.find(d => d.sym === sym);
   if (!me) return "";
-  // xếp hạng chỉ tính trong nhóm quỹ/ETF (loại vàng/BTC)
-  const scored = all.filter(d => !d.noScore).slice().sort((a, b) => b.score - a.score);
-  const rank = me.noScore ? null : scored.findIndex(d => d.sym === sym);
+  // xếp hạng chỉ tính trong nhóm quỹ/ETF có điểm (loại vàng/BTC + quỹ <1 năm)
+  const scored = all.filter(d => d.score !== null).slice().sort((a, b) => b.score - a.score);
+  const rank = me.score === null ? null : scored.findIndex(d => d.sym === sym);
   const rows = [
-    li("Xếp hạng tổng hợp", me.noScore ? "— (tham chiếu)" : `#${rank + 1} / ${scored.length}`, "blue", "Theo điểm tổng hợp ở tab So sánh"),
+    li("Xếp hạng tổng hợp", me.noScore ? "— (tham chiếu)" : me.tooYoung ? "— (quỹ chưa đủ 1 năm)" : `#${rank + 1} / ${scored.length}`, "blue", "Theo điểm tổng hợp ở tab So sánh"),
     li("Điểm tổng hợp", me.score === null ? "—" : me.score.toFixed(0) + " / 100"),
     li("Biến động (3N)", me.vol == null ? "—" : me.vol.toFixed(1) + "%"),
     li("Sụt tối đa (5N)", me.mdd == null ? "—" : me.mdd.toFixed(1) + "%", "neg"),
@@ -1441,13 +1506,21 @@ function maxDrawdown(rows) {
   for (const x of rows) { const v = x[1]; if (v > peak) peak = v; if (peak > 0) { const dd = (v - peak) / peak; if (dd < mdd) mdd = dd; } }
   return mdd * 100;                       // % (âm)
 }
-function volatility(rets) { return rets.length > 2 ? sStd(rets) * Math.sqrt(TRADE_DAYS) * 100 : null; }
-function sharpeRatio(rets) {
+// Số kỳ/năm THỰC TẾ của chuỗi NAV (quỹ cập nhật ngày ~252, tuần ~52...).
+// Annualize bằng 252 cứng sẽ thổi phồng biến động ~2× và Sharpe/α tới ~5× với quỹ NAV tuần.
+function periodsPerYear(rows) {
+  if (!rows || rows.length < 3) return TRADE_DAYS;
+  const spanY = (rows[rows.length - 1][0] - rows[0][0]) / (365.25 * 864e5);
+  return spanY > 0 ? Math.min(TRADE_DAYS, (rows.length - 1) / spanY) : TRADE_DAYS;
+}
+function volatility(rets, ppy) { return rets.length > 2 ? sStd(rets) * Math.sqrt(ppy || TRADE_DAYS) * 100 : null; }
+function sharpeRatio(rets, ppy) {
   if (rets.length < 20) return null;
-  const ar = sAvg(rets) * TRADE_DAYS, av = sStd(rets) * Math.sqrt(TRADE_DAYS);
+  const p = ppy || TRADE_DAYS;
+  const ar = sAvg(rets) * p, av = sStd(rets) * Math.sqrt(p);
   return av > 0 ? (ar - RF_RATE) / av : null;
 }
-function alphaBeta(fundRows, idxRows) {
+function alphaBeta(fundRows, idxRows, ppy) {
   if (!idxRows || !idxRows.length) return { alpha: null, beta: null };
   const im = new Map(idxRows.map(r => [r[0], r[1]]));
   const common = [];
@@ -1480,7 +1553,9 @@ function alphaBeta(fundRows, idxRows) {
   for (let i = 0; i < A.length; i++) { cov += (A[i] - mf) * (B[i] - mi); vi += (B[i] - mi) ** 2; }
   cov /= (A.length - 1); vi /= (A.length - 1);
   const beta = vi > 0 ? cov / vi : null;
-  const alpha = beta === null ? null : ((mf * TRADE_DAYS - RF_RATE) - beta * (mi * TRADE_DAYS - RF_RATE)) * 100;
+  // annualize theo tần suất chung của chuỗi đã khớp (quỹ NAV tuần → chuỗi chung là tuần)
+  const p = ppy || TRADE_DAYS;
+  const alpha = beta === null ? null : ((mf * p - RF_RATE) - beta * (mi * p - RF_RATE)) * 100;
   return { alpha, beta };
 }
 function sellFeeInfo(info) {
@@ -1511,42 +1586,57 @@ function fundMetrics(f) {
     ? (Math.pow(rows[rows.length - 1][1] / startVal10, 1 / capYrs) - 1) * 100 : null;
   const w = windowRows(rows, 3), rets = dailyRets(w);
   const w5 = windowRows(rows, 5);                          // sụt tối đa dùng khung 5 năm
-  const { alpha, beta } = alphaBeta(w, state.benchmark ? windowRows(state.benchmark.rows, 3) : null);
+  const ppy = periodsPerYear(w);                           // số kỳ/năm thực tế (NAV ngày ~252, tuần ~52)
+  const { alpha, beta } = alphaBeta(w, state.benchmark ? windowRows(state.benchmark.rows, 3) : null, ppy);
   const young = rows[0][0] > endMs - 3 * 365.25 * 864e5;   // chưa đủ 3 năm
   const young5 = rows[0][0] > endMs - 5 * 365.25 * 864e5;  // chưa đủ 5 năm (cho sụt tối đa)
+  const tooYoung = rows[0][0] > endMs - 1 * 365.25 * 864e5; // chưa đủ 1 năm → không chấm điểm
   const sf = sellFeeInfo(fd.info);
   return {
     sym: f.symbol, owner: shortOwner(f.owner || ""),
     ytd: g("YTD"), r1: g("1Y"), r3, r5, cagrTL,
-    vol: volatility(rets), mdd: maxDrawdown(w5), sharpe: sharpeRatio(rets),
+    vol: volatility(rets, ppy), mdd: maxDrawdown(w5), sharpe: sharpeRatio(rets, ppy),
     beta, alpha, sellFee: sf.fee, sellText: sf.text,
     riskName: (fd.info && fd.info.risk && fd.info.risk.riskLevel && fd.info.risk.riskLevel.name) || "",
-    young, young5, noScore: assetCcy(f.symbol) === "USD",   // vàng/BTC: tham chiếu, không chấm điểm
+    ppy,                                                    // số kỳ NAV/năm (~252 ngày, ~52 tuần) — cho tab Giải thích
+    young, young5, tooYoung, noScore: assetCcy(f.symbol) === "USD",   // vàng/BTC: tham chiếu, không chấm điểm
   };
 }
 
-// điểm tổng hợp 0-100 (chuẩn hóa min-max theo từng tiêu chí, có trọng số)
-// Quỹ thiếu dữ liệu 1 tiêu chí (vd chưa đủ 5Y) → tiêu chí đó tính trung tính 0.5 (không thưởng/phạt).
+// điểm tổng hợp 0-100 (chuẩn hóa theo THỨ HẠNG percentile từng tiêu chí, có trọng số)
+// - Percentile rank thay min-max: 1 quỹ outlier không kéo giãn thang làm nén điểm các quỹ còn lại.
+// - Quỹ <1 năm dữ liệu: không chấm điểm (score = null, hiện "—").
+// - Quỹ 1-3 năm: tiêu chí rủi ro (Sharpe, sụt tối đa, biến động, α) tính trên cửa sổ quá ngắn
+//   → coi như thiếu, tính trung tính 0.5 (không thưởng vì "chưa kịp sụt").
+// - Tiêu chí thiếu dữ liệu khác (vd chưa đủ 5Y) → trung tính 0.5.
 const CMP_CRITERIA = [
   { key: "r5", w: 0.15, dir: 1 }, { key: "r3", w: 0.20, dir: 1 }, { key: "r1", w: 0.10, dir: 1 },
-  { key: "sharpe", w: 0.20, dir: 1 }, { key: "mdd", w: 0.15, dir: 1 },
-  { key: "vol", w: 0.10, dir: -1 }, { key: "alpha", w: 0.05, dir: 1 },
+  { key: "sharpe", w: 0.20, dir: 1, risk3y: true }, { key: "mdd", w: 0.15, dir: 1, risk3y: true },
+  { key: "vol", w: 0.10, dir: -1, risk3y: true }, { key: "alpha", w: 0.05, dir: 1, risk3y: true },
   { key: "sellFee", w: 0.05, dir: -1 },
 ];
 function addComposite(list) {
-  const base = list.filter(d => !d.noScore);   // chuẩn hoá CHỈ trên quỹ/ETF (loại vàng/BTC để không méo thang)
+  // chuẩn hoá CHỈ trên quỹ/ETF đủ tuổi (loại vàng/BTC + quỹ <1 năm để không méo thang)
+  const base = list.filter(d => !d.noScore && !d.tooYoung);
   for (const c of CMP_CRITERIA) {
-    const vals = base.map(d => d[c.key]).filter(v => v !== null && v !== undefined && !isNaN(v));
-    const min = Math.min(...vals), max = Math.max(...vals), span = max - min;
-    c._norm = d => {
+    const usable = d => {
       const v = d[c.key];
-      if (v === null || v === undefined || isNaN(v)) return 0.5;   // thiếu → trung tính
-      if (span === 0) return 0.5;
-      const n = (v - min) / span;
+      if (v === null || v === undefined || isNaN(v)) return false;
+      if (c.risk3y && d.young) return false;               // <3Y: chỉ số rủi ro không đáng tin
+      return true;
+    };
+    const vals = base.filter(usable).map(d => d[c.key]).sort((a, b) => a - b);
+    c._norm = d => {
+      if (!usable(d) || vals.length < 2) return 0.5;       // thiếu → trung tính
+      const v = d[c.key];
+      let below = 0, atOrBelow = 0;
+      for (const x of vals) { if (x < v) below++; if (x <= v) atOrBelow++; }
+      const n = (below + atOrBelow - 1) / 2 / (vals.length - 1);   // percentile 0..1 (trung bình khi trùng)
       return c.dir === 1 ? n : 1 - n;
     };
   }
-  for (const d of list) d.score = d.noScore ? null : CMP_CRITERIA.reduce((s, c) => s + c.w * c._norm(d), 0) * 100;
+  for (const d of list)
+    d.score = (d.noScore || d.tooYoung) ? null : CMP_CRITERIA.reduce((s, c) => s + c.w * c._norm(d), 0) * 100;
   return list;
 }
 
@@ -1571,7 +1661,7 @@ function renderCompare() {
     const s = d.young ? star : "";
     const s5 = d.young5 ? star5 : "";
     const scoreBar = d.score === null
-      ? `<td class="muted" title="Vàng/BTC là tham chiếu — không chấm điểm chung với quỹ">—</td>`
+      ? `<td class="muted" title="${d.tooYoung ? "Quỹ chưa đủ 1 năm dữ liệu — chưa đủ cơ sở chấm điểm" : "Vàng/BTC là tham chiếu — không chấm điểm chung với quỹ"}">—</td>`
       : `<td><b>${d.score.toFixed(0)}</b><span class="scorebar"><i style="width:${Math.max(2, Math.min(100, d.score))}%"></i></span></td>`;
     const alphaCell = d.alpha === null || isNaN(d.alpha) ? `<td class="muted">—</td>`
       : `<td class="${d.alpha >= 0 ? "pos" : "neg"}">${signFmt(d.alpha, "%")}${s}</td>`;
@@ -1612,8 +1702,189 @@ function initCompareSort() {
 function switchSection(sec) {
   el("secOverview").style.display = sec === "overview" ? "" : "none";
   el("secCompare").style.display = sec === "compare" ? "" : "none";
+  el("secExplain").style.display = sec === "explain" ? "" : "none";
   document.querySelectorAll(".stab").forEach(b => b.classList.toggle("active", b.dataset.sec === sec));
   if (sec === "compare") renderCompare();
+  if (sec === "explain") renderExplain(state.expSym || state.active);
+}
+
+// ================= TAB GIẢI THÍCH ĐIỂM =================
+const EXP_META = {
+  r5:      { name: "Tăng trưởng 5 năm",      fmt: d => signFmt(d.r5, "%"),
+    tip: "<b>Tăng trưởng 5 năm</b><br>NAV tăng bao nhiêu % trong 5 năm gần nhất (luỹ kế cả giai đoạn, không phải mỗi năm). Đo sức bền dài hạn — quỹ phải đi qua cả chu kỳ tăng lẫn giảm." },
+  r3:      { name: "Tăng trưởng 3 năm",      fmt: d => signFmt(d.r3, "%"),
+    tip: "<b>Tăng trưởng 3 năm</b><br>NAV tăng bao nhiêu % trong 3 năm gần nhất. Tiêu chí lợi nhuận nặng nhất (20%): đủ dài để loại may mắn ngắn hạn, đủ gần để phản ánh phong độ hiện tại." },
+  r1:      { name: "Tăng trưởng 1 năm",      fmt: d => signFmt(d.r1, "%"),
+    tip: "<b>Tăng trưởng 1 năm</b><br>NAV tăng bao nhiêu % trong 12 tháng gần nhất — phong độ ngắn hạn, trọng số nhẹ (10%) vì dễ nhiễu." },
+  sharpe:  { name: "Sharpe (3N)",            fmt: d => d.sharpe.toFixed(2),
+    tip: "<b>Sharpe (3 năm)</b><br>Lợi nhuận trên mỗi đơn vị rủi ro: (lãi/năm − lãi phi rủi ro 5%) ÷ biến động. Trên 1 là tốt; dưới 0 = lãi không bù nổi rủi ro. Cùng lãi 20%, quỹ đi êm có Sharpe cao hơn quỹ giật cục." },
+  mdd:     { name: "Sụt tối đa (5N)",        fmt: d => d.mdd.toFixed(1) + "%",
+    tip: "<b>Sụt tối đa (5 năm)</b><br>Mức lỗ sâu nhất từ đỉnh xuống đáy trong 5 năm. Vd −40% = từng có lúc mất 40% nếu lỡ mua đúng đỉnh — mức \"đau\" tối đa phải chịu được khi giữ quỹ này." },
+  vol:     { name: "Biến động (3N)",         fmt: d => d.vol.toFixed(1) + "%/năm",
+    tip: "<b>Biến động (3 năm)</b><br>NAV dao động lên xuống mạnh cỡ nào, quy theo năm (đã tính đúng theo tần suất cập nhật NAV của quỹ). Quỹ cổ phiếu VN thường 15–25%. Thấp hơn = đi êm hơn, DCA đỡ \"say sóng\"." },
+  alpha:   { name: "Alpha vs VN-Index (3N)", fmt: d => signFmt(d.alpha, "%/năm"),
+    tip: "<b>Alpha (α) — 3 năm</b><br>Lợi nhuận/năm quỹ tạo ra VƯỢT mức đáng lẽ có theo độ rủi ro (beta) của nó, so với VN-Index. α&gt;0 = đội quản lý quỹ giỏi hơn thị trường sau khi trừ rủi ro; α&lt;0 = kém hơn." },
+  sellFee: { name: "Phí bán (giữ dài)",      fmt: d => d.sellText,
+    tip: "<b>Phí bán (giữ dài)</b><br>Phí khi bán chứng chỉ quỹ, lấy mức áp dụng khi giữ đủ lâu (hợp với DCA dài hạn). NAV đã trừ sẵn phí quản lý hằng năm nên không tính lại phí đó." },
+};
+// tiêu chí này có dùng được cho quỹ d không (giống logic trong addComposite)
+function expUsable(c, d) {
+  const v = d[c.key];
+  if (v === null || v === undefined || isNaN(v)) return false;
+  if (c.risk3y && d.young) return false;
+  return true;
+}
+function expPctWord(p) {
+  return p >= 80 ? "rất tốt" : p >= 60 ? "khá" : p >= 40 ? "trung bình" : p >= 20 ? "dưới trung bình" : "nhóm cuối";
+}
+function expPctColor(p) {
+  return p >= 60 ? "var(--green)" : p >= 40 ? "var(--blue)" : p >= 20 ? "var(--orange, #f59e0b)" : "var(--red)";
+}
+function renderExplain(sym) {
+  const body = el("expBody");
+  if (!body) return;
+  const all = metricsList();
+  const d = sym ? all.find(x => x.sym === sym) : null;
+  if (!d) {
+    body.innerHTML = `<p class="hint">Gõ mã quỹ ở trên (hoặc bấm một dòng ở tab So sánh) để xem giải thích điểm.</p>`;
+    return;
+  }
+  state.expSym = d.sym;
+  const inp = el("expInput");
+  if (inp && inp.value !== d.sym) inp.value = d.sym;
+  const f = state.funds.find(x => x.symbol === d.sym) || {};
+  const base = all.filter(x => !x.noScore && !x.tooYoung);
+  const weekly = d.ppy && d.ppy < 100;   // NAV cập nhật thưa (tuần)
+
+  // ----- khối điểm (nằm đầu panel phải); các trường hợp không chấm điểm -----
+  let scoreBlock, headNote = "";
+  if (d.noScore) {
+    scoreBlock = `<div class="exp-score"><div class="row1"><span class="num muted">—</span><span class="rankbadge">Tham chiếu</span></div></div>`;
+    headNote = `Tài sản <b>tham chiếu</b> (định giá USD) — không chấm điểm chung với quỹ VN. Các chỉ số bên dưới chỉ để so sánh bằng mắt.`;
+  } else if (d.tooYoung) {
+    scoreBlock = `<div class="exp-score"><div class="row1"><span class="num muted">—</span><span class="rankbadge">Chưa chấm điểm</span></div></div>`;
+    headNote = `Quỹ mới có <b>dưới 1 năm</b> dữ liệu NAV — quá ngắn để chấm điểm công bằng (chưa qua đợt điều chỉnh nào đáng kể, chưa đủ khung 1Y/3Y/5Y). Web sẽ tự chấm khi đủ 1 năm.`;
+  } else {
+    const scored = all.filter(x => x.score !== null).sort((a, b) => b.score - a.score);
+    const rank = scored.findIndex(x => x.sym === d.sym) + 1;
+    const sc = d.score;
+    scoreBlock = `<div class="exp-score">
+      <div class="row1">
+        <span class="num">${sc.toFixed(0)}<small> / 100</small></span>
+        <span class="rankbadge">Hạng #${rank} / ${scored.length}</span>
+      </div>
+      <div class="sbar"><i style="width:${Math.max(3, Math.min(100, sc))}%;background:${expPctColor(sc)}"></i></div>
+      <div class="sublabel">Điểm tổng hợp — cao hơn ${(100 * (scored.length - rank) / Math.max(1, scored.length - 1)).toFixed(0)}% số quỹ được chấm</div>
+    </div>`;
+  }
+
+  // ----- bảng bóc tách từng tiêu chí -----
+  let rowsHtml = "", verdictHtml = "", strengths = [], weaknesses = [];
+  if (!d.noScore && !d.tooYoung) {
+    rowsHtml = `<table class="expTbl"><thead><tr>
+      <th>Tiêu chí</th><th>Giá trị</th><th>So với nhóm</th><th>Điểm góp</th><th style="text-align:left">Nhận xét</th>
+    </tr></thead><tbody>`;
+    for (const c of CMP_CRITERIA) {
+      const m = EXP_META[c.key], w = c.w * 100;
+      const usable = expUsable(c, d);
+      const n = c._norm(d), pct = n * 100, pts = c.w * n * 100;
+      let cmpCell, note;
+      if (!usable) {
+        cmpCell = `<span class="muted">trung tính</span>`;
+        note = (d[c.key] === null || d[c.key] === undefined || isNaN(d[c.key]))
+          ? `Thiếu dữ liệu (quỹ chưa đủ khung thời gian) → tính trung tính, không thưởng không phạt.`
+          : `Quỹ chưa đủ 3 năm → chỉ số rủi ro đo trên cửa sổ quá ngắn, tính trung tính.`;
+      } else {
+        // hạng trong nhóm theo chiều TỐT (dir); đồng hạng khi trùng giá trị
+        const vals = base.filter(x => expUsable(c, x)).map(x => x[c.key]);
+        const rank = vals.filter(v => (v - d[c.key]) * c.dir > 0).length + 1;
+        const ties = vals.filter(v => v === d[c.key]).length;
+        cmpCell = `tốt hơn ${pct.toFixed(0)}%<span class="pbar"><i style="width:${Math.max(3, pct)}%;background:${expPctColor(pct)}"></i></span>`;
+        note = `Hạng ${rank}/${vals.length}${ties > 1 ? ` (đồng hạng ${ties} quỹ)` : ""} — ${expPctWord(pct)}.`;
+        if (pct >= 75) strengths.push(m.name);
+        if (pct <= 25) weaknesses.push(m.name);
+      }
+      rowsHtml += `<tr>
+        <td data-tip='${m.tip}'>${m.name} <span class="ic">ⓘ</span></td>
+        <td><b>${usable || (d[c.key] !== null && d[c.key] !== undefined && !isNaN(d[c.key])) ? m.fmt(d) : "—"}</b></td>
+        <td>${cmpCell}</td>
+        <td><b>${pts.toFixed(1)}</b> / ${w.toFixed(0)}</td>
+        <td class="note">${note}</td>
+      </tr>`;
+    }
+    rowsHtml += `</tbody></table>`;
+
+    // ----- nhận định tổng hợp -----
+    const avgPct = keys => {
+      const ps = CMP_CRITERIA.filter(c => keys.includes(c.key) && expUsable(c, d)).map(c => c._norm(d) * 100);
+      return ps.length ? ps.reduce((s, x) => s + x, 0) / ps.length : null;
+    };
+    const riskP = avgPct(["vol", "mdd"]), retP = avgPct(["r1", "r3", "r5"]);
+    const lines = [];
+    const vline = (label, html) => `<div class="vline"><span class="vlabel">${label}</span><span class="vbody">${html}</span></div>`;
+    if (riskP === null) {
+      lines.push(vline("Rủi ro", `Chưa đủ 3 năm dữ liệu để kết luận.`));
+    } else {
+      const w = riskP >= 65 ? ["Thấp", "pos"] : riskP <= 35 ? ["Cao", "neg"] : ["Trung bình", ""];
+      lines.push(vline("Rủi ro", `<b class="${w[1]}">${w[0]}</b> so với nhóm — biến động ${d.vol == null ? "—" : d.vol.toFixed(1) + "%/năm"}, từng sụt sâu nhất ${d.mdd == null ? "—" : d.mdd.toFixed(1) + "%"} trong 5 năm.`));
+    }
+    if (retP !== null) {
+      const w = retP >= 65 ? ["Nhóm đầu", "pos"] : retP <= 35 ? ["Nhóm cuối", "neg"] : ["Giữa nhóm", ""];
+      lines.push(vline("Lợi nhuận", `<b class="${w[1]}">${w[0]}</b> khi so 1Y/3Y/5Y với các quỹ khác.`));
+    }
+    if (strengths.length) lines.push(vline("Mạnh nhất", strengths.join(" · ")));
+    if (weaknesses.length) lines.push(vline("Yếu nhất", weaknesses.join(" · ")));
+    verdictHtml = `<div class="exp-verdict">${lines.join("")}</div>`;
+  } else {
+    // vàng/BTC hoặc quỹ <1 năm: chỉ hiện chỉ số thô
+    const fx = (v, dg, suf) => v == null || isNaN(v) ? "—" : v.toFixed(dg) + suf;
+    rowsHtml = `<table class="expTbl"><thead><tr><th>Chỉ số</th><th>Giá trị</th></tr></thead><tbody>
+      <tr><td>YTD / 1Y / 3Y / 5Y</td><td><b>${[d.ytd, d.r1, d.r3, d.r5].map(v => v == null ? "—" : signFmt(v, "%")).join(" · ")}</b></td></tr>
+      <tr><td data-tip='${EXP_META.vol.tip}'>Biến động (3N) <span class="ic">ⓘ</span></td><td><b>${fx(d.vol, 1, "%/năm")}</b></td></tr>
+      <tr><td data-tip='${EXP_META.mdd.tip}'>Sụt tối đa (5N) <span class="ic">ⓘ</span></td><td><b>${fx(d.mdd, 1, "%")}</b></td></tr>
+      <tr><td data-tip='${EXP_META.sharpe.tip}'>Sharpe (3N) <span class="ic">ⓘ</span></td><td><b>${fx(d.sharpe, 2, "")}</b></td></tr>
+      <tr><td data-tip='${EXP_META.sellFee.tip}'>Phí bán (giữ dài) <span class="ic">ⓘ</span></td><td><b>${d.sellText}</b></td></tr>
+    </tbody></table>`;
+  }
+
+  // ----- lưu ý cuối -----
+  const flags = [];
+  if (!d.noScore && !d.tooYoung && d.young)
+    flags.push(`Quỹ chưa đủ <b>3 năm</b> dữ liệu: 4 tiêu chí rủi ro (Sharpe, sụt tối đa, biến động, α) tính trung tính — điểm chủ yếu phản ánh lợi nhuận ngắn hạn và phí.`);
+  if (!d.noScore && !d.tooYoung && !d.young && d.young5)
+    flags.push(`Chưa đủ <b>5 năm</b> dữ liệu: tiêu chí 5Y trung tính; sụt tối đa đo trên toàn bộ lịch sử hiện có.`);
+  if (weekly)
+    flags.push(`NAV quỹ này cập nhật <b>~${Math.round(d.ppy)} kỳ/năm</b> (thưa, cỡ tuần). Biến động/Sharpe đã quy năm đúng theo tần suất này, nhưng dữ liệu thưa tự nó "mượt" hơn — biến động thật khi so với quỹ NAV ngày có thể cao hơn con số hiển thị một chút.`);
+  if (d.riskName) flags.push(`Mức rủi ro do Fmarket phân loại: <b>${d.riskName}</b>.`);
+  flags.push(`Điểm chuẩn hoá theo thứ hạng trong ${base.length} quỹ/ETF đủ tuổi hiện có — thêm/bớt quỹ sẽ làm điểm mọi quỹ thay đổi nhẹ. Chỉ để tham khảo, không phải khuyến nghị đầu tư.`);
+
+  body.innerHTML = `
+    <div class="exp-head"><span class="fsym">${d.sym}</span><span class="fname">${(f.name || "").toString()}</span></div>
+    <div class="exp-cols">
+      <div class="exp-main">${rowsHtml}</div>
+      <aside class="exp-side">
+        ${scoreBlock}
+        ${headNote ? `<h4>Vì sao chưa có điểm</h4><p class="exp-verdict">${headNote}</p>` : ""}
+        ${verdictHtml ? `<h4>Nhận định</h4>${verdictHtml}` : ""}
+        <h4>Lưu ý</h4>
+        <div class="exp-flags">${flags.map(x => `<div>${x}</div>`).join("")}</div>
+      </aside>
+    </div>`;
+}
+function initExplain() {
+  const inp = el("expInput"), list = el("expList");
+  if (!inp || !list) return;
+  list.innerHTML = state.funds.map(f => `<option value="${f.symbol}">${f.name || ""}</option>`).join("");
+  const resolve = () => {
+    const q = inp.value.trim().toUpperCase();
+    if (!q) return;
+    const f = state.funds.find(x => x.symbol.toUpperCase() === q)
+      || state.funds.find(x => x.symbol.toUpperCase().startsWith(q))
+      || state.funds.find(x => (x.name || "").toUpperCase().includes(q));
+    if (f) renderExplain(f.symbol);
+  };
+  inp.addEventListener("change", resolve);
+  inp.addEventListener("keydown", e => { if (e.key === "Enter") resolve(); });
 }
 
 // tooltip tuỳ biến: phần tử có [data-tip] → hộp giải thích theo con trỏ
@@ -1792,6 +2063,7 @@ async function loadAll() {
   initFundPicker();
   initOverviewSort();
   initCompareSort();
+  initExplain();
   initTooltips();
   document.querySelectorAll(".stab").forEach(b =>
     b.addEventListener("click", () => switchSection(b.dataset.sec)));
