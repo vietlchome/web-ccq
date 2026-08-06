@@ -224,6 +224,8 @@
     text-transform: uppercase; letter-spacing: .04em; }
   table.expTbl td:first-child, table.expTbl th:first-child { text-align: left; white-space: normal; }
   table.expTbl td.note { text-align: left; color: var(--muted); font-size: 12px; white-space: normal; }
+  /* dòng tham khảo (không tính điểm): tách khỏi khối tiêu chí chấm điểm */
+  table.expTbl tr.expRef td { background: var(--panel2); border-top: 2px solid var(--border); }
   .pbar { display: inline-block; width: 90px; height: 6px; background: var(--border);
     border-radius: 3px; margin-left: 8px; vertical-align: middle; overflow: hidden; }
   .pbar i { display: block; height: 100%; }
@@ -238,6 +240,19 @@
     pointer-events: none; opacity: 0; transition: opacity .1s; text-transform: none;
     letter-spacing: normal; font-weight: 400; white-space: normal; }
   .tip.show { opacity: 1; }
+  /* nhóm A/B/C/D + sparkline ổn định thứ hạng */
+  .tier { display: inline-block; min-width: 20px; text-align: center; font-weight: 700; font-size: 12px;
+    padding: 2px 5px; border-radius: 5px; color: #fff; cursor: help; }
+  .tier.tA { background: var(--green); }
+  .tier.tB { background: var(--blue); }
+  .tier.tC { background: #f59e0b; }
+  .tier.tD { background: var(--red); }
+  .scorenum { color: var(--muted); font-size: 11px; margin-left: 6px; }
+  .spark { display: block; margin: 0 auto; overflow: visible; }
+  .stabtxt { font-size: 10.5px; text-align: center; margin-top: -1px; white-space: nowrap; }
+  /* mã quỹ viết tắt: hover hiện tên đầy đủ */
+  .symname { border-bottom: 1px dotted var(--muted); cursor: help; }
+  .symname:hover { color: var(--blue); border-bottom-color: var(--blue); }
   .tip b { color: var(--text); }
   /* panel danh mục quỹ */
   .sg .subh { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; margin: 8px 0 3px; }
@@ -406,7 +421,8 @@
         <th class="sortable" data-key="beta" data-tip="<b>Beta (β) — độ nhạy với VN-Index</b><br>β=1: chạy cùng nhịp thị trường. β&gt;1: khuếch đại (chỉ số +10% thì quỹ ~+12% nếu β=1,2 — nhưng lúc giảm cũng mạnh hơn). β&lt;1: ít biến động hơn thị trường.">β <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="alpha" data-tip="<b>Alpha (α)</b><br>Lợi nhuận/năm quỹ tạo ra VƯỢT mức đáng lẽ có theo rủi ro (beta) của nó. α&gt;0 = giỏi hơn thị trường sau khi trừ rủi ro; α&lt;0 = kém hơn. Thể hiện năng lực thật của người quản lý quỹ.">α <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="sellFee" data-tip="<b>Phí bán</b><br>Phí khi bán chứng chỉ quỹ. Vd 2%→0% (≥12 tháng): giữ ngắn mất 2%, giữ đủ lâu miễn phí. Cột này hiện mức khi giữ dài (hợp với DCA giữ lâu). NAV đã trừ phí quản lý nên không tính lại.">Phí bán <span class="ic">ⓘ</span><span class="arr"></span></th>
-        <th class="sortable" data-key="score" data-tip="<b>Điểm tổng hợp (0–100)</b><br>Gộp 8 tiêu chí có trọng số: 5Y 15% · 3Y 20% · 1Y 10% · Sharpe 20% · Sụt tối đa 15% · Biến động 10% · α 5% · Phí bán 5%. Chuẩn hoá theo THỨ HẠNG (percentile) trong nhóm quỹ hiện có nên không bị outlier kéo méo thang. Cao = tổng thể tốt. Quỹ &lt;1 năm dữ liệu: chưa chấm điểm. Quỹ 1–3 năm: các tiêu chí rủi ro (Sharpe, sụt tối đa, biến động, α) tính trung tính vì cửa sổ quá ngắn. Tiêu chí thiếu dữ liệu (vd chưa đủ 5Y) cũng tính trung tính. Trọng số chủ quan — chỉ để tham khảo.">Điểm <span class="ic">ⓘ</span><span class="arr"></span></th>
+        <th class="sortable" data-key="score" data-tip="<b>Điểm tổng hợp (0–100)</b><br>Gộp 8 tiêu chí có trọng số: 5Y 15% · 3Y 20% · 1Y 10% · Sharpe 20% · Sụt tối đa 15% · Biến động 10% · α 5% · Phí bán 5%. Chuẩn hoá theo THỨ HẠNG (percentile) trong nhóm quỹ hiện có nên không bị outlier kéo méo thang. Cao = tổng thể tốt. Quỹ &lt;1 năm dữ liệu: chưa chấm điểm. Quỹ 1–3 năm: các tiêu chí rủi ro (Sharpe, sụt tối đa, biến động, α) tính trung tính vì cửa sổ quá ngắn. Tiêu chí thiếu dữ liệu (vd chưa đủ 5Y) cũng tính trung tính. Trọng số chủ quan — chỉ để tham khảo.<br><b>Nhóm A/B/C/D</b> = phần tư thứ hạng (A = 25% tốt nhất). Dùng nhóm để chọn, đừng so kè chênh 1–2 điểm.">Điểm <span class="ic">ⓘ</span><span class="arr"></span></th>
+        <th class="sortable" data-key="avgRank" data-tip="<b>Ổn định thứ hạng (24 mốc tháng)</b><br>Điểm tổng hợp được <b>chấm lại tại từng mốc cuối tháng</b>, mỗi mốc chỉ dùng NAV có đến ngày đó (không nhìn trộm tương lai). Đường kẻ là điểm qua thời gian (thang cố định 0–100), con số là <b>hạng trung bình</b> trong giai đoạn đó.<br>Vì sao cần: điểm tính trên cửa sổ 3–5 năm nên con số hôm nay gần như không đổi theo ngày — chỉ quỹ đạo nhiều tháng mới cho biết quỹ giữ phong độ đều hay vừa nhảy lên nhờ một giai đoạn may mắn.<br>▲ đang lên · ▬ ổn định · ▼ đang xuống (so 6 mốc gần nhất với 6 mốc trước đó).">Ổn định 24T <span class="ic">ⓘ</span><span class="arr"></span></th>
       </tr></thead>
       <tbody id="cmpBody"></tbody>
     </table>
@@ -418,6 +434,11 @@
       <b>Điểm</b> tổng hợp 0-100, trọng số: 5Y 15% · 3Y 20% · 1Y 10% · Sharpe 20% · Sụt tối đa 15% · Biến động 10% · α 5% · Phí bán 5%,
       chuẩn hoá theo thứ hạng (percentile) trong nhóm quỹ đang có.
       Quỹ &lt;1 năm dữ liệu chưa chấm điểm; quỹ 1–3 năm các tiêu chí rủi ro tính trung tính (0.5); tiêu chí thiếu dữ liệu (vd chưa đủ 5Y) cũng trung tính.
+      <b>Nhóm</b>: <span class="tier tA">A</span> 25% tốt nhất · <span class="tier tB">B</span> trên trung vị · <span class="tier tC">C</span> dưới trung vị · <span class="tier tD">D</span> 25% thấp nhất.
+      Chênh 1–2 điểm giữa hai quỹ nằm trong sai số của bộ trọng số chủ quan — chọn theo <b>nhóm</b>, đừng đổi quỹ vì nhích vài điểm (đổi quỹ mất phí bán và reset mốc miễn phí).
+      <b>Ổn định 24T</b>: điểm được chấm lại tại từng mốc cuối tháng trong 36 tháng, mỗi mốc chỉ dùng NAV có đến ngày đó; đường kẻ là vị trí trong nhóm qua thời gian, con số là hạng trung bình 24 mốc gần nhất.
+      Bảng điểm này để <b>CHỌN quỹ</b> — nên xem lại theo quý, không phải theo ngày; tín hiệu <b>MUA</b> xem hằng ngày ở tab Tổng quan.
+      Mọi chỉ số đều nhìn về quá khứ: dùng để loại quỹ kém và quỹ đắt, chứ không dự báo được quỹ nào lãi nhất năm tới.
       (Chỉ để tham khảo, không phải khuyến nghị). Bấm dòng để xem chart quỹ đó.
     </p>
     </div>
@@ -1437,7 +1458,7 @@ function renderOverview(p) {
       : `<td class="muted" title="Chưa thỏa điều kiện mua (NAV trên EMA200)">—</td>`;
     const fav = state.favs.has(d.sym);
     return `<tr class="clickable" data-sym="${d.sym}">
-      <td><span class="fav${fav ? " on" : ""}" data-fav="${d.sym}" title="${fav ? "Bỏ yêu thích" : "Đánh dấu yêu thích"}">${fav ? "★" : "☆"}</span><b>${d.sym}</b></td>
+      <td><span class="fav${fav ? " on" : ""}" data-fav="${d.sym}" title="${fav ? "Bỏ yêu thích" : "Đánh dấu yêu thích"}">${fav ? "★" : "☆"}</span><b class="symname" data-tip="${fundTip(d.sym)}">${d.sym}</b></td>
       <td>${assetCcy(d.sym) === "USD" ? nfUSD.format(d.nav) + " $" : nfVND.format(d.nav)}</td>
       <td>${fmtDate(d.date)}</td>
       ${perf(d.ytd)}${perf(d.y1)}${perf(d.y3)}${perf(d.y5)}
@@ -1558,6 +1579,32 @@ function alphaBeta(fundRows, idxRows, ppy) {
   const alpha = beta === null ? null : ((mf * p - RF_RATE) - beta * (mi * p - RF_RATE)) * 100;
   return { alpha, beta };
 }
+// Tỷ lệ thắng VN-Index (rolling): trong 5 năm gần nhất, mua vào MỘT NGÀY BẤT KỲ rồi giữ đúng 1 năm,
+// bao nhiêu % số lần quỹ lãi hơn VN-Index. Mọi quỹ dùng chung khung 5 năm → so sánh được với nhau
+// (quỹ 20 tuổi và quỹ 3 tuổi không còn bị chấm trên hai giai đoạn thị trường khác nhau).
+// CHỈ ĐỂ THAM KHẢO, không cộng vào điểm: cửa sổ chồng lấn nhau nên không phải mẫu độc lập,
+// và chỉ số này đo gần như cùng thứ với α + tăng trưởng 3Y.
+const WIN_LOOKBACK_Y = 5, WIN_HOLD_Y = 1, WIN_MIN_N = 24;
+function winRateVsIndex(rows, idxRows) {
+  if (!rows || rows.length < 2 || !idxRows || idxRows.length < 2) return null;
+  const HOLD = WIN_HOLD_Y * 365.25 * 864e5;
+  const endMs = Math.min(rows[rows.length - 1][0], idxRows[idxRows.length - 1][0]);
+  const lo = Math.max(rows[0][0], idxRows[0][0], endMs - WIN_LOOKBACK_Y * 365.25 * 864e5);
+  const hi = endMs - HOLD;                       // ngày mua muộn nhất còn đủ 1 năm nắm giữ
+  if (hi <= lo) return null;
+  let n = 0, win = 0;
+  for (const [t, v] of rows) {
+    if (t < lo || t > hi) continue;
+    const fEnd = valAtOrBefore(rows, t + HOLD);
+    const iS = valAtOrBefore(idxRows, t), iEnd = valAtOrBefore(idxRows, t + HOLD);
+    if (!(v > 0) || fEnd === null || iS === null || iEnd === null || !(iS > 0)) continue;
+    n++;
+    if (fEnd / v > iEnd / iS) win++;
+  }
+  const spanY = (hi - lo) / (365.25 * 864e5);    // ngày mua trải bao nhiêu năm
+  if (n < WIN_MIN_N || spanY < 0.75) return null;
+  return { pct: win / n * 100, n, spanY };
+}
 function sellFeeInfo(info) {
   const list = (info && info.fees && info.fees.productFeeList) || [];
   const sells = list.filter(f => String(f.type).toUpperCase() === "SELL");
@@ -1572,11 +1619,25 @@ function sellFeeInfo(info) {
   return { fee: min, text };                // fee = phí bán khi giữ dài (đáng quan tâm với DCA)
 }
 
+// cắt chuỗi NAV về "as-of" một ngày: chỉ giữ phiên có time <= ms (dùng cho lịch sử điểm)
+function rowsUntil(rows, ms) {
+  if (!rows.length || rows[0][0] > ms) return [];
+  let lo = 0, hi = rows.length - 1, ans = 0;
+  while (lo <= hi) { const mid = (lo + hi) >> 1; if (rows[mid][0] <= ms) { ans = mid; lo = mid + 1; } else hi = mid - 1; }
+  return ans === rows.length - 1 ? rows : rows.slice(0, ans + 1);
+}
+
 // gom toàn bộ chỉ số 1 quỹ để so sánh
-function fundMetrics(f) {
+// opts.asOfMs : tính như thể hôm nay là ngày đó (chỉ dùng NAV <= ngày đó) — cho lịch sử điểm
+// opts.light  : bỏ tỷ lệ thắng VN-Index (nặng, không vào điểm) khi tính hàng loạt
+// opts.benchRows : chuỗi VN-Index đã cắt sẵn theo asOfMs (tránh cắt lại 40 lần/mốc)
+function fundMetrics(f, opts) {
+  const o = opts || {};
   const fd = state.fundData[f.symbol];
   if (!fd || !fd.rows || fd.rows.length < 2) return null;
-  const rows = fd.rows, endMs = rows[rows.length - 1][0];
+  const rows = o.asOfMs ? rowsUntil(fd.rows, o.asOfMs) : fd.rows;
+  if (rows.length < 2) return null;
+  const endMs = rows[rows.length - 1][0];
   const g = k => growthPct(rows, frameStartMs(endMs, k), endMs);
   const r3 = g("3Y"), r5 = g("5Y");
   // Bình quân/năm: annualized qua TỐI ĐA 10 năm gần nhất (tránh CAGR ảo của tài sản quá già như BTC/vàng)
@@ -1587,16 +1648,22 @@ function fundMetrics(f) {
   const w = windowRows(rows, 3), rets = dailyRets(w);
   const w5 = windowRows(rows, 5);                          // sụt tối đa dùng khung 5 năm
   const ppy = periodsPerYear(w);                           // số kỳ/năm thực tế (NAV ngày ~252, tuần ~52)
-  const { alpha, beta } = alphaBeta(w, state.benchmark ? windowRows(state.benchmark.rows, 3) : null, ppy);
+  const bench = o.benchRows !== undefined ? o.benchRows
+    : (state.benchmark ? (o.asOfMs ? rowsUntil(state.benchmark.rows, o.asOfMs) : state.benchmark.rows) : null);
+  const { alpha, beta } = alphaBeta(w, bench && bench.length ? windowRows(bench, 3) : null, ppy);
   const young = rows[0][0] > endMs - 3 * 365.25 * 864e5;   // chưa đủ 3 năm
   const young5 = rows[0][0] > endMs - 5 * 365.25 * 864e5;  // chưa đủ 5 năm (cho sụt tối đa)
   const tooYoung = rows[0][0] > endMs - 1 * 365.25 * 864e5; // chưa đủ 1 năm → không chấm điểm
   const sf = sellFeeInfo(fd.info);
+  // tỷ lệ thắng VN-Index — bỏ qua tài sản định giá USD (vàng/BTC): khác đồng tiền, so với VN-Index vô nghĩa
+  const wr = (o.light || assetCcy(f.symbol) === "USD") ? null
+    : winRateVsIndex(rows, bench && bench.length ? bench : null);
   return {
     sym: f.symbol, owner: shortOwner(f.owner || ""),
     ytd: g("YTD"), r1: g("1Y"), r3, r5, cagrTL,
     vol: volatility(rets, ppy), mdd: maxDrawdown(w5), sharpe: sharpeRatio(rets, ppy),
     beta, alpha, sellFee: sf.fee, sellText: sf.text,
+    winRate: wr ? wr.pct : null, winN: wr ? wr.n : null, winSpanY: wr ? wr.spanY : null,
     riskName: (fd.info && fd.info.risk && fd.info.risk.riskLevel && fd.info.risk.riskLevel.name) || "",
     ppy,                                                    // số kỳ NAV/năm (~252 ngày, ~52 tuần) — cho tab Giải thích
     young, young5, tooYoung, noScore: assetCcy(f.symbol) === "USD",   // vàng/BTC: tham chiếu, không chấm điểm
@@ -1640,11 +1707,152 @@ function addComposite(list) {
   return list;
 }
 
+// ============ LỊCH SỬ ĐIỂM (as-of) & ĐỘ ỔN ĐỊNH THỨ HẠNG ============
+// Vì sao cần: điểm dùng cửa sổ 3–5 năm nên cập nhật hằng ngày gần như không đổi — con số
+// "hôm nay" không nói được quỹ đang tốt lên hay xấu đi. Ta chấm lại điểm tại từng mốc cuối
+// tháng trong 36 tháng, MỖI MỐC CHỈ DÙNG NAV CÓ ĐẾN NGÀY ĐÓ (không nhìn trộm tương lai),
+// rồi nhìn quỹ đạo thứ hạng: giữ hạng ổn định hay vừa nhảy lên nhờ một giai đoạn may mắn.
+const HIST_MONTHS = 36;        // số mốc tính lại điểm
+const STAB_MONTHS = 24;        // cửa sổ đánh giá độ ổn định
+const TREND_WIN = 6;           // so trung bình 6 mốc gần nhất với 6 mốc trước đó
+const TREND_EPS = 6;           // ngưỡng đổi xu hướng (điểm phần trăm thứ hạng)
+
+function histMarks(lastMs) {
+  const d = new Date(lastMs), y = d.getUTCFullYear(), m = d.getUTCMonth(), marks = [];
+  for (let k = HIST_MONTHS - 1; k >= 1; k--) marks.push(Date.UTC(y, m - k + 1, 0, 23, 59, 59));
+  marks.push(lastMs);           // mốc cuối = ngày dữ liệu mới nhất
+  return marks;
+}
+// { sym: [{t, score, rank, n, pct}] } — pct = vị trí phần trăm (100 = đứng đầu)
+function scoreHistory() {
+  if (state._scoreHist) return state._scoreHist;
+  let lastMs = 0;
+  for (const f of state.funds) {
+    const fd = state.fundData[f.symbol];
+    if (fd && fd.rows && fd.rows.length) lastMs = Math.max(lastMs, fd.rows[fd.rows.length - 1][0]);
+  }
+  const hist = {};
+  if (!lastMs) return (state._scoreHist = hist);
+  for (const t of histMarks(lastMs)) {
+    const bench = state.benchmark ? rowsUntil(state.benchmark.rows, t) : null;
+    const list = [];
+    for (const f of state.funds) {
+      const m = fundMetrics(f, { asOfMs: t, light: true, benchRows: bench });
+      if (m) list.push(m);
+    }
+    if (!list.length) continue;
+    addComposite(list);
+    const scored = list.filter(d => d.score !== null).sort((a, b) => b.score - a.score);
+    scored.forEach((d, i) => { d._rank = i + 1; });
+    const n = scored.length;
+    for (const d of list) {
+      (hist[d.sym] || (hist[d.sym] = [])).push({
+        t, score: d.score, rank: d._rank || null, n,
+        pct: d._rank && n > 1 ? (n - d._rank) / (n - 1) * 100 : null,
+      });
+    }
+  }
+  // addComposite ở trên đã ghi đè _norm của CMP_CRITERIA theo rổ quá khứ → dựng lại theo rổ hiện tại
+  if (state._metrics) addComposite(state._metrics);
+  return (state._scoreHist = hist);
+}
+// gắn thống kê ổn định vào từng dòng chỉ số
+function attachStability(list) {
+  const hist = scoreHistory();
+  for (const d of list) {
+    const all = hist[d.sym] || [];
+    const pts = all.filter(h => h.score !== null).slice(-STAB_MONTHS);
+    d.hist = pts;
+    d.avgRank = d.worstRank = d.bestRank = d.trend = null;
+    if (pts.length < 4) { d.trend = "new"; continue; }
+    d.avgRank = pts.reduce((s, h) => s + h.rank, 0) / pts.length;
+    d.worstRank = Math.max(...pts.map(h => h.rank));
+    d.bestRank = Math.min(...pts.map(h => h.rank));
+    d.histN = pts.length;
+    if (pts.length >= TREND_WIN * 2) {
+      const avg = a => a.reduce((s, h) => s + h.pct, 0) / a.length;
+      const now = avg(pts.slice(-TREND_WIN)), prev = avg(pts.slice(-TREND_WIN * 2, -TREND_WIN));
+      d.trendDelta = now - prev;
+      d.trend = d.trendDelta >= TREND_EPS ? "up" : d.trendDelta <= -TREND_EPS ? "down" : "flat";
+    } else d.trend = "short";
+  }
+  return list;
+}
+// sparkline VỊ TRÍ TRONG NHÓM (0 = cuối bảng, 100 = đứng đầu) — thang y cố định 0–100
+// Dùng vị trí thay vì điểm thô: thang tự nhiên phủ hết 0–100 nên nhìn rõ quỹ đạo, và không bị
+// ảnh hưởng khi rổ quỹ đổi (thêm quỹ mới) như điểm thô.
+function sparkline(pts, color) {
+  const use = (pts || []).filter(h => h.pct !== null);
+  if (use.length < 2) return "";
+  const W = 62, H = 18, P = 2;
+  const t0 = use[0].t, t1 = use[use.length - 1].t, span = Math.max(1, t1 - t0);
+  const xy = use.map(h => [P + (h.t - t0) / span * (W - 2 * P),
+    H - P - Math.max(0, Math.min(100, h.pct)) / 100 * (H - 2 * P)]);
+  const dPath = xy.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const last = xy[xy.length - 1];
+  return `<svg class="spark" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
+    <path d="${dPath}" fill="none" stroke="${color}" stroke-width="1.4" stroke-linejoin="round"/>
+    <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="1.8" fill="${color}"/></svg>`;
+}
+const TREND_META = {
+  up:    { icon: "▲", word: "Đang lên",  col: "var(--green)" },
+  down:  { icon: "▼", word: "Đang xuống", col: "var(--red)" },
+  flat:  { icon: "▬", word: "Ổn định",   col: "var(--blue)" },
+  short: { icon: "·", word: "Chưa đủ 12 mốc", col: "var(--muted)" },
+  new:   { icon: "·", word: "Quá mới",    col: "var(--muted)" },
+};
+function stabilityCell(d) {
+  const m = TREND_META[d.trend] || TREND_META.new;
+  if (!d.hist || d.hist.length < 4)
+    return `<td class="muted" data-tip="Chưa đủ lịch sử để đánh giá độ ổn định (cần ít nhất 4 mốc tháng có điểm).">—</td>`;
+  const tip = [
+    `<b>Ổn định thứ hạng — ${d.histN} mốc tháng gần nhất</b>`,
+    `Hạng trung bình: <b>#${d.avgRank.toFixed(1)}</b> · tốt nhất #${d.bestRank} · xấu nhất #${d.worstRank}`,
+    `Xu hướng: <b>${m.word}</b>` + (d.trendDelta !== undefined && d.trend !== "short"
+      ? ` (6 mốc gần đây ${d.trendDelta >= 0 ? "+" : ""}${d.trendDelta.toFixed(0)} điểm phần trăm thứ hạng so với 6 mốc trước)` : ""),
+    `Đường kẻ = <b>vị trí trong nhóm</b> qua thời gian (đỉnh khung = đứng đầu, đáy = cuối bảng).`,
+    `Mỗi mốc được chấm lại <b>chỉ bằng dữ liệu NAV có đến ngày đó</b> — không dùng thông tin của tương lai.`,
+  ].join("<br>");
+  return `<td data-tip="${tip}">
+    ${sparkline(d.hist, m.col)}
+    <div class="stabtxt" style="color:${m.col}">${m.icon} TB #${d.avgRank.toFixed(1)}</div></td>`;
+}
+
+// ============ NHÓM A/B/C/D thay cho so kè từng điểm ============
+// Chênh 1–2 điểm nằm trong sai số của bộ trọng số chủ quan; đổi quỹ vì chênh 1 điểm là vô nghĩa
+// mà lại tốn phí bán + reset mốc miễn phí. Chia theo PHẦN TƯ thứ hạng: muốn đổi nhóm thì phải
+// dịch chuyển vài bậc chứ không phải nhích một chút.
+const TIER_META = {
+  A: { name: "Nhóm đầu", desc: "25% quỹ tốt nhất theo điểm tổng hợp" },
+  B: { name: "Nhóm trên", desc: "25–50% — trên trung vị" },
+  C: { name: "Nhóm dưới", desc: "50–75% — dưới trung vị" },
+  D: { name: "Nhóm cuối", desc: "25% quỹ thấp nhất" },
+};
+function assignTiers(list) {
+  const scored = list.filter(d => d.score !== null).slice().sort((a, b) => b.score - a.score);
+  const n = scored.length;
+  scored.forEach((d, i) => {
+    const q = n > 1 ? i / n : 0;
+    d.rankNow = i + 1; d.scoredN = n;
+    d.tier = q < 0.25 ? "A" : q < 0.5 ? "B" : q < 0.75 ? "C" : "D";
+  });
+  for (const d of list) if (d.score === null) { d.tier = null; d.rankNow = null; }
+  return list;
+}
+function tierTip(d) {
+  const m = TIER_META[d.tier] || {};
+  return [`<b>${m.name} (${d.tier})</b> — ${m.desc}`,
+    `Hạng #${d.rankNow}/${d.scoredN} · điểm ${d.score.toFixed(0)}/100`,
+    `Chênh 1–2 điểm giữa hai quỹ <b>không có ý nghĩa</b> (trọng số là chủ quan). Hãy chọn trong cùng một nhóm rồi cân theo phí và độ ổn định, đừng đổi quỹ vì nhích vài điểm.`].join("<br>");
+}
+
 function renderCompare() {
   const body = el("cmpBody");
   if (!body) return;
   const sort = state.cmpSort || (state.cmpSort = { key: "score", dir: -1 });
   let list = metricsList().slice();
+  attachStability(list);
+  assignTiers(list);
   list.sort((a, b) => {
     let va = a[sort.key], vb = b[sort.key];
     if (va === null || va === undefined || (typeof va === "number" && isNaN(va))) return 1;
@@ -1662,11 +1870,11 @@ function renderCompare() {
     const s5 = d.young5 ? star5 : "";
     const scoreBar = d.score === null
       ? `<td class="muted" title="${d.tooYoung ? "Quỹ chưa đủ 1 năm dữ liệu — chưa đủ cơ sở chấm điểm" : "Vàng/BTC là tham chiếu — không chấm điểm chung với quỹ"}">—</td>`
-      : `<td><b>${d.score.toFixed(0)}</b><span class="scorebar"><i style="width:${Math.max(2, Math.min(100, d.score))}%"></i></span></td>`;
+      : `<td data-tip="${tierTip(d)}"><span class="tier t${d.tier}">${d.tier}</span><small class="scorenum">${d.score.toFixed(0)}</small></td>`;
     const alphaCell = d.alpha === null || isNaN(d.alpha) ? `<td class="muted">—</td>`
       : `<td class="${d.alpha >= 0 ? "pos" : "neg"}">${signFmt(d.alpha, "%")}${s}</td>`;
     return `<tr class="clickable" data-sym="${d.sym}">
-      <td><b>${d.sym}</b></td>
+      <td><b class="symname" data-tip="${fundTip(d.sym)}">${d.sym}</b></td>
       ${num(d.ytd, "%")}${num(d.r1, "%")}${num(d.r3, "%")}${num(d.r5, "%")}${num(d.cagrTL, "%")}
       <td>${fx(d.vol, 1, "%")}${s}</td>
       <td class="neg">${fx(d.mdd, 1, "%")}${s5}</td>
@@ -1675,6 +1883,7 @@ function renderCompare() {
       ${alphaCell}
       <td title="Phí bán khi giữ dài">${d.sellText}</td>
       ${scoreBar}
+      ${stabilityCell(d)}
     </tr>`;
   }).join("");
   body.querySelectorAll("tr.clickable").forEach(tr =>
@@ -1695,7 +1904,7 @@ function initCompareSort() {
     const key = th.dataset.key;
     const s = state.cmpSort || (state.cmpSort = { key: "score", dir: -1 });
     if (s.key === key) s.dir = -s.dir;
-    else { s.key = key; s.dir = key === "sym" ? 1 : -1; }
+    else { s.key = key; s.dir = (key === "sym" || key === "avgRank") ? 1 : -1; }   // hạng: nhỏ = tốt
     renderCompare();
   });
 }
@@ -1724,6 +1933,8 @@ const EXP_META = {
     tip: "<b>Biến động (3 năm)</b><br>NAV dao động lên xuống mạnh cỡ nào, quy theo năm (đã tính đúng theo tần suất cập nhật NAV của quỹ). Quỹ cổ phiếu VN thường 15–25%. Thấp hơn = đi êm hơn, DCA đỡ \"say sóng\"." },
   alpha:   { name: "Alpha vs VN-Index (3N)", fmt: d => signFmt(d.alpha, "%/năm"),
     tip: "<b>Alpha (α) — 3 năm</b><br>Lợi nhuận/năm quỹ tạo ra VƯỢT mức đáng lẽ có theo độ rủi ro (beta) của nó, so với VN-Index. α&gt;0 = đội quản lý quỹ giỏi hơn thị trường sau khi trừ rủi ro; α&lt;0 = kém hơn." },
+  winRate: { name: "Tỷ lệ thắng VN-Index",   fmt: d => d.winRate.toFixed(0) + "%",
+    tip: "<b>Tỷ lệ thắng VN-Index — tham khảo</b><br>Trong <b>5 năm gần nhất</b>: mua vào một ngày bất kỳ rồi giữ đúng <b>1 năm</b>, quỹ lãi hơn VN-Index bao nhiêu % số lần. Vd 78% = trong 100 lần vào lệnh ngẫu nhiên thì 78 lần hơn chỉ số.<br>Mọi quỹ đều đo trên cùng khung 5 năm nên so được với nhau (quỹ 20 tuổi không bị chấm trên giai đoạn khác quỹ 3 tuổi).<br><b>Không cộng vào điểm</b>: các cửa sổ 1 năm chồng lấn nhau nên không phải mẫu độc lập, và nó đo gần trùng với α + tăng trưởng 3Y — cộng vào là đếm hai lần cùng một thứ." },
   sellFee: { name: "Phí bán (giữ dài)",      fmt: d => d.sellText,
     tip: "<b>Phí bán (giữ dài)</b><br>Phí khi bán chứng chỉ quỹ, lấy mức áp dụng khi giữ đủ lâu (hợp với DCA dài hạn). NAV đã trừ sẵn phí quản lý hằng năm nên không tính lại phí đó." },
 };
@@ -1743,7 +1954,7 @@ function expPctColor(p) {
 function renderExplain(sym) {
   const body = el("expBody");
   if (!body) return;
-  const all = metricsList();
+  const all = assignTiers(attachStability(metricsList()));
   const d = sym ? all.find(x => x.sym === sym) : null;
   if (!d) {
     body.innerHTML = `<p class="hint">Gõ mã quỹ ở trên (hoặc bấm một dòng ở tab So sánh) để xem giải thích điểm.</p>`;
@@ -1768,13 +1979,21 @@ function renderExplain(sym) {
     const scored = all.filter(x => x.score !== null).sort((a, b) => b.score - a.score);
     const rank = scored.findIndex(x => x.sym === d.sym) + 1;
     const sc = d.score;
+    const tm = TIER_META[d.tier] || {};
+    const trm = TREND_META[d.trend] || {};
+    const stab = d.avgRank !== null && d.avgRank !== undefined
+      ? `<div class="sublabel">${d.histN} mốc tháng gần nhất: hạng trung bình <b>#${d.avgRank.toFixed(1)}</b>
+          (tốt nhất #${d.bestRank}, xấu nhất #${d.worstRank}) — <span style="color:${trm.col}">${trm.icon} ${trm.word}</span></div>`
+      : `<div class="sublabel">Chưa đủ lịch sử để đánh giá độ ổn định thứ hạng.</div>`;
     scoreBlock = `<div class="exp-score">
       <div class="row1">
         <span class="num">${sc.toFixed(0)}<small> / 100</small></span>
-        <span class="rankbadge">Hạng #${rank} / ${scored.length}</span>
+        <span class="rankbadge"><span class="tier t${d.tier}">${d.tier}</span> ${tm.name} · #${rank}/${scored.length}</span>
       </div>
       <div class="sbar"><i style="width:${Math.max(3, Math.min(100, sc))}%;background:${expPctColor(sc)}"></i></div>
-      <div class="sublabel">Điểm tổng hợp — cao hơn ${(100 * (scored.length - rank) / Math.max(1, scored.length - 1)).toFixed(0)}% số quỹ được chấm</div>
+      <div class="sublabel">Điểm tổng hợp — cao hơn ${(100 * (scored.length - rank) / Math.max(1, scored.length - 1)).toFixed(0)}% số quỹ được chấm.
+        Chênh 1–2 điểm với quỹ khác không có ý nghĩa — nên so theo <b>nhóm</b>.</div>
+      ${stab}
     </div>`;
   }
 
@@ -1812,6 +2031,32 @@ function renderExplain(sym) {
         <td class="note">${note}</td>
       </tr>`;
     }
+    // ----- dòng THAM KHẢO: tỷ lệ thắng VN-Index (không cộng điểm) -----
+    {
+      const m = EXP_META.winRate;
+      const wvals = base.map(x => x.winRate).filter(v => v !== null && v !== undefined && !isNaN(v)).sort((a, b) => a - b);
+      let vCell = `<span class="muted">—</span>`, cmpCell = `<span class="muted">—</span>`, note;
+      if (d.winRate !== null && wvals.length >= 2) {
+        let below = 0, atOrBelow = 0;
+        for (const x of wvals) { if (x < d.winRate) below++; if (x <= d.winRate) atOrBelow++; }
+        const wp = (below + atOrBelow - 1) / 2 / (wvals.length - 1) * 100;
+        const wrank = wvals.filter(v => v > d.winRate).length + 1;
+        vCell = `<b class="${d.winRate >= 50 ? "pos" : "neg"}">${m.fmt(d)}</b>`;
+        cmpCell = `tốt hơn ${wp.toFixed(0)}%<span class="pbar"><i style="width:${Math.max(3, wp)}%;background:${expPctColor(wp)}"></i></span>`;
+        const shortSpan = d.winSpanY < WIN_LOOKBACK_Y - WIN_HOLD_Y - 0.25;
+        note = `Hạng ${wrank}/${wvals.length} — ${expPctWord(wp)}. ${d.winN} cửa sổ 1 năm`
+          + (shortSpan ? `, ngày mua chỉ trải ${d.winSpanY.toFixed(1)} năm (quỹ mới, mẫu ngắn hơn quỹ khác).` : ` trong 5 năm gần nhất.`);
+      } else {
+        note = `Chưa đủ dữ liệu chung với VN-Index để có ít nhất ${WIN_MIN_N} cửa sổ 1 năm.`;
+      }
+      rowsHtml += `<tr class="expRef">
+        <td data-tip='${m.tip}'>${m.name} <span class="ic">ⓘ</span></td>
+        <td>${vCell}</td>
+        <td>${cmpCell}</td>
+        <td class="muted">tham khảo</td>
+        <td class="note">${note}</td>
+      </tr>`;
+    }
     rowsHtml += `</tbody></table>`;
 
     // ----- nhận định tổng hợp -----
@@ -1831,6 +2076,11 @@ function renderExplain(sym) {
     if (retP !== null) {
       const w = retP >= 65 ? ["Nhóm đầu", "pos"] : retP <= 35 ? ["Nhóm cuối", "neg"] : ["Giữa nhóm", ""];
       lines.push(vline("Lợi nhuận", `<b class="${w[1]}">${w[0]}</b> khi so 1Y/3Y/5Y với các quỹ khác.`));
+    }
+    if (d.winRate !== null) {
+      const w = d.winRate >= 60 ? "pos" : d.winRate <= 40 ? "neg" : "";
+      lines.push(vline("Vs VN-Index", `Mua ngẫu nhiên rồi giữ 1 năm, thắng chỉ số <b class="${w}">${d.winRate.toFixed(0)}%</b> số lần trong 5 năm gần nhất`
+        + (d.alpha == null ? "" : ` · α ${signFmt(d.alpha, "%/năm")}`) + `. <span class="muted">(tham khảo, không tính điểm)</span>`));
     }
     if (strengths.length) lines.push(vline("Mạnh nhất", strengths.join(" · ")));
     if (weaknesses.length) lines.push(vline("Yếu nhất", weaknesses.join(" · ")));
@@ -1855,6 +2105,8 @@ function renderExplain(sym) {
     flags.push(`Chưa đủ <b>5 năm</b> dữ liệu: tiêu chí 5Y trung tính; sụt tối đa đo trên toàn bộ lịch sử hiện có.`);
   if (weekly)
     flags.push(`NAV quỹ này cập nhật <b>~${Math.round(d.ppy)} kỳ/năm</b> (thưa, cỡ tuần). Biến động/Sharpe đã quy năm đúng theo tần suất này, nhưng dữ liệu thưa tự nó "mượt" hơn — biến động thật khi so với quỹ NAV ngày có thể cao hơn con số hiển thị một chút.`);
+  if (!d.noScore && !d.tooYoung && d.winRate !== null)
+    flags.push(`Tỷ lệ thắng VN-Index <b>không cộng vào điểm</b>: các cửa sổ 1 năm chồng lấn nhau nên một đợt tốt kéo dài có thể đẩy con số lên cao, và VN-Index là chỉ số <b>giá</b> — chưa cộng cổ tức (~1,5%/năm) nên quỹ được lợi nhẹ khi so.`);
   if (d.riskName) flags.push(`Mức rủi ro do Fmarket phân loại: <b>${d.riskName}</b>.`);
   flags.push(`Điểm chuẩn hoá theo thứ hạng trong ${base.length} quỹ/ETF đủ tuổi hiện có — thêm/bớt quỹ sẽ làm điểm mọi quỹ thay đổi nhẹ. Chỉ để tham khảo, không phải khuyến nghị đầu tư.`);
 
@@ -1937,6 +2189,23 @@ function updateBuyUI() {
   if (stepInp) stepInp.value = isBtcAsset()
     ? (state.stepBtc || DEFAULTS.stepBtc)
     : (state.stepStd || DEFAULTS.stepStd);
+}
+
+// escape để nhét chuỗi vào thuộc tính HTML (data-tip)
+function escAttr(s) {
+  return String(s || "").replace(/&/g, "&amp;").replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+// tooltip tên đầy đủ của quỹ (hover lên mã viết tắt ở cột Quỹ)
+function fundTip(sym) {
+  const f = state.funds.find(x => x.symbol === sym);
+  if (!f) return "";
+  const parts = [`<b>${escAttr(f.name || sym)}</b>`];
+  // ETF/vàng/BTC không có "công ty quản lý" theo nghĩa quỹ mở → chỉ hiện loại tài sản
+  const generic = /^(ETF|Tài sản khác)$/i.test(f.owner || "");
+  if (f.owner && !generic) parts.push(`Công ty QL: ${escAttr(f.owner)}`);
+  if (f.assetType) parts.push(escAttr(f.assetType));
+  return parts.join("<br>");
 }
 
 // rút gọn tên công ty quản lý quỹ để làm nhãn nhóm
