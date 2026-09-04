@@ -50,3 +50,29 @@ Sửa `funds.txt`, chạy lại `fetch_data.py` (hoặc đợi workflow chạy).
 - Mỗi người tự chỉnh tham số trên web (lưu localStorage riêng từng máy) — không cần chạy lại script.
 
 > Công cụ tham khảo nội bộ, không phải khuyến nghị đầu tư.
+
+## Động cơ backtest (từ 09/2026)
+
+Logic 4 chiến thuật nằm trong `engine.js` (UMD — chạy được cả trên trình duyệt lẫn Node), tách khỏi `index.html` để đối chiếu tự động được với chỉ báo TradingView.
+
+```bash
+node test-engine.js          # đối chiếu với TradingView (vàng là mốc chuẩn)
+node compare.js FUESSVFL     # so 4 cách trên 1 quỹ
+node compare.js --tat-ca     # quét toàn bộ quỹ
+```
+
+**Bốn cách** = tổ hợp hai công tắc, có nút bấm nhanh ở đầu cột trái:
+
+| | Lọc EMA200D | Mỏ neo đôi |
+|---|---|---|
+| Cách 1 | tắt | tắt |
+| Cách 2 | bật | tắt |
+| Cách 3 | bật | bật |
+| Cách 4 | tắt | bật |
+
+**Hai điểm quan trọng đã sửa:**
+
+- *Lịch, không phải điểm dữ liệu.* Quỹ công bố NAV 48–365 lần/năm, nên tính EMA200 trên mảng NAV thô cho ra "EMA200" dài 0,55 năm (BTC) tới 4,2 năm (TBLF) — cùng một dòng code, ý nghĩa lệch 8 lần. Giờ EMA và nhịp DCA chạy trên lưới ngày lịch (`alignToRows`), khớp cách TradingView tính. VCBF-BCF trước đây bắn 11,9% số phiên, đúng ra phải là 27,3%.
+- *Mỏ neo đôi.* Hệ số = (độ rẻ so EMA200 ngày ÷ bước ngày) + (độ rẻ so EMA200 tuần ÷ bước tuần), sàn 1x, có trần. Bỏ hẳn phần mua-giảm-dần khi giá trên EMA của bản cũ.
+
+Phí quản lý quỹ KHÔNG trừ trong engine — NAV đã là số ròng sau phí, trừ nữa là tính hai lần. Chỉ `feeBuyPct` (phí mua CCQ) là tham số.

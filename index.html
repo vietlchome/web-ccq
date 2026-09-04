@@ -5,7 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DCA EMA200 — Chứng chỉ quỹ</title>
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
+<script src="engine.js"></script>
 <style>
+  .ways{display:grid;gap:6px;margin-bottom:8px}
+  .way{display:block;width:100%;text-align:left;cursor:pointer;
+    background:var(--panel2);color:var(--text);border:1px solid var(--border);
+    border-radius:8px;padding:8px 10px;font:inherit;line-height:1.3}
+  .way b{display:block;font-size:13.5px;font-weight:600}
+  .way span{display:block;font-size:11.5px;color:var(--muted);margin-top:2px}
+  .way:hover{border-color:var(--blue)}
+  .way.on{border-color:var(--blue);background:rgba(59,130,246,.12)}
+  .way.on b{color:var(--blue)}
   :root {
     --bg: #0f1420; --panel: #171e2e; --panel2: #1d2639; --border: #2a3550;
     --text: #dbe4f5; --muted: #8494b3; --green: #22c55e; --red: #ef4444;
@@ -88,6 +98,14 @@
   .kpi .v { font-size: 22px; font-weight: 700; margin-top: 4px; }
   .kpi .s { font-size: 11px; color: var(--muted); margin-top: 2px; }
   .kpi { position: relative; }
+  /* Thanh tỷ lệ vốn / lãi trong thẻ Tổng tài sản */
+  .splitbar { display: flex; height: 7px; border-radius: 4px; overflow: hidden;
+    background: var(--border); margin: 8px 0 6px; }
+  .splitbar i { display: block; height: 100%; }
+  .splitbar .cap { background: var(--blue); }
+  .splitbar .gain { background: var(--green); }
+  .splitlab { display: flex; flex-wrap: wrap; gap: 2px 14px; font-size: 12.5px; }
+  .splitlab b { font-weight: 600; }
   .kpi-extra { position: absolute; top: 12px; right: 14px; text-align: right; font-size: 11px;
     color: #eab308; line-height: 1.35; }
   .kpi-extra b { font-size: 15px; font-weight: 700; }
@@ -293,6 +311,16 @@
 <div class="layout">
   <div class="sidebar">
     <div class="grp">
+      <h3>Chiến thuật</h3>
+      <div class="ways" id="ways">
+        <button type="button" class="way" data-mode="always"    data-mult="0"><b>1 · Mua đều</b><span>không nhìn giá</span></button>
+        <button type="button" class="way" data-mode="belowOnly" data-mult="0"><b>2 · Chỉ mua khi rẻ</b><span>dưới EMA200, đều tay</span></button>
+        <button type="button" class="way" data-mode="belowOnly" data-mult="1"><b>3 · Rẻ &amp; dồn đáy</b><span>dưới EMA200, càng rẻ càng đậm</span></button>
+        <button type="button" class="way" data-mode="always"    data-mult="1"><b>4 · Đều &amp; dồn đáy</b><span>mua mọi tuần, rẻ mua đậm</span></button>
+      </div>
+      <div class="hint">Bấm để đặt nhanh hai công tắc bên dưới. Chạy đủ bốn cách rồi so — đừng chỉ chạy cách bạn thích.</div>
+    </div>
+    <div class="grp">
       <h3>Cấu hình mua định kỳ</h3>
       <div class="row"><label>Chu kỳ DCA (phiên)</label><input type="number" id="dcaDays" min="1" value="5"></div>
       <div class="hint">5 phiên ≈ 1 tuần · 22 phiên ≈ 1 tháng</div>
@@ -307,8 +335,10 @@
     <div class="grp">
       <h3>Hệ số nhân động</h3>
       <div class="row"><label>Bật hệ số nhân</label><input type="checkbox" id="enableMult"></div>
-      <div class="row"><label>Bước nhảy % EMA</label><input type="number" id="stepPctBuy" min="0.1" step="0.1" value="3"></div>
-      <div class="hint">Bước nhảy nhớ riêng từng tài sản (BTC gợi ý 5%, quỹ/ETF/vàng 3%).<br>Dưới EMA200: mỗi bước rẻ hơn → +1x (vd bước 3%: dưới 9% → x3).<br>Trên EMA200 (chế độ "Mua mọi lúc"): mỗi bước đắt hơn → −0.1x, sàn 0.1x.</div>
+      <div class="row"><label>Bước % — neo ngày</label><input type="number" id="stepPctBuy" min="0.1" step="0.1" value="3"></div>
+      <div class="row"><label>Bước % — neo tuần</label><input type="number" id="stepPctW" min="0.1" step="0.1" value="3"></div>
+      <div class="row"><label>Trần hệ số</label><input type="number" id="multCap" min="1" step="1" value="10"></div>
+      <div class="hint"><b>Mỏ neo đôi:</b> hệ số = (độ rẻ so với EMA200 ngày ÷ bước ngày) + (độ rẻ so với EMA200 tuần ÷ bước tuần). Sàn 1x, chặn bởi trần.<br>Neo tuần chỉ cộng thêm khi NAV rơi xuống dưới cả EMA200 tuần — tức vùng thật sự sâu.<br>Bước nhảy nhớ riêng từng tài sản (BTC gợi ý 5%, quỹ/ETF/vàng 3%).</div>
     </div>
     <div class="grp">
       <h3>Thời gian backtest</h3>
@@ -465,7 +495,7 @@
 
 const DEFAULTS = {
   dcaDays: 5, buyAmount: 1000000, buyVnd: 1000, buyUsd: 50, buyMode: "always",
-  enableMult: false, stepPctBuy: 3, stepStd: 3, stepBtc: 5,
+  enableMult: false, stepPctBuy: 3, stepStd: 3, stepBtc: 5, stepPctW: 3, multCap: 10,
   startDate: "2021-01-01", endDate: "", lumpsum: 0,
   targetMode: "qty", targetValue: 0, targetUnit: "trieu",
   showEmaW: true, showGold: false, labelMode: "all",
@@ -488,6 +518,14 @@ function fmtMoney(v, sym) {
   return assetCcy(sym) === "USD" ? nfUSD.format(v) + " $" : nfVND.format(v) + " đ";
 }
 const nf2 = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 2 });
+// Rút gọn cho nhãn chật: 1.568.200.000 đ -> "1,57 tỷ". Số âm giữ nguyên dấu.
+function fmtCompact(v, sym) {
+  const a = Math.abs(v), sg = v < 0 ? "-" : "";
+  if (assetCcy(sym) === "USD") return sg + (a >= 1000 ? nf2.format(a / 1000) + "K" : nf2.format(a)) + " $";
+  if (a >= 1e9) return sg + nf2.format(a / 1e9) + " tỷ";
+  if (a >= 1e6) return sg + nf2.format(a / 1e6) + " tr";
+  return sg + nfVND.format(a) + " đ";
+}
 
 // ---------- Chỉ báo ----------
 function emaSeries(values, period) {
@@ -565,13 +603,22 @@ function runBacktest(rows, p) {
   const n = rows.length;
   const closes = rows.map(r => r[1]);
   const times = rows.map(r => r[0]);
-  const ema = emaSeries(closes, 200);
+  // EMA và nhịp DCA tính trên LỊCH, không phải trên số điểm dữ liệu:
+  // quỹ công bố NAV 48-365 lần/năm nên đếm điểm sẽ cho "EMA200" dài ngắn
+  // khác nhau tới 8 lần giữa các quỹ.
+  const AL = window.DCAEngine.alignToRows(rows, 200);
+  const ema = AL.emaD, emaWArr = AL.emaW, gIdx = AL.gridIdx;
 
   const startMs = p.startDate ? Date.parse(p.startDate + "T00:00:00Z") : -Infinity;
   const endMs = p.endDate ? Date.parse(p.endDate + "T23:59:59Z") : Infinity;
   const YEAR_MS = 31557600000;
 
   let totalInvested = 0, totalUnits = 0, totalBuys = 0, sumBuyMult = 0;
+  // Chi tiêu gom theo TUẦN LỊCH — nuôi các chỉ số quản trị vốn ở thẻ dưới.
+  const DAY_MS = 86400000, WEEK_MS = 7 * DAY_MS;
+  const wkKeyOf = ms => Math.floor((ms - 4 * DAY_MS) / WEEK_MS);
+  const wkSpend = []; let curWkKey = null, curWkSpend = 0;
+  let maxBuyMult = 0, buysAtFloor = 0;
   let firstBuyTime = null, lastBuySession = null, lumpsumDone = false;
   let minPnlPct = null;
   const cfT = [], cfA = [];           // dòng tiền cho IRR
@@ -582,6 +629,11 @@ function runBacktest(rows, p) {
   for (let i = 0; i < n; i++) {
     const t = times[i];
     const inRange = t >= startMs && t <= endMs;
+    if (inRange) {
+      const wk = wkKeyOf(t);
+      if (curWkKey === null) curWkKey = wk;
+      while (curWkKey < wk) { wkSpend.push(curWkSpend); curWkSpend = 0; curWkKey++; }
+    }
 
     // Lumpsum tại phiên đầu tiên trong khoảng
     if (inRange && !lumpsumDone && p.lumpsum > 0) {
@@ -595,10 +647,11 @@ function runBacktest(rows, p) {
     // Tín hiệu mua: dựa trên phiên TRƯỚC (fix lookahead như Pine)
     const prevClose = i > 0 ? closes[i - 1] : null;
     const prevEma = i > 0 ? ema[i - 1] : null;
-    const dueDca = lastBuySession === null || (i - lastBuySession) >= p.dcaDays;
+    const dueDca = lastBuySession === null || (gIdx[i] - gIdx[lastBuySession]) >= p.dcaDays;
 
     // Hệ số nhân theo vị trí giá phiên trước so với EMA200 (mult = 0 → không mua)
-    const mult = buyMultiplier(prevClose, prevEma, p);
+    const prevEmaW = i > 0 ? emaWArr[i - 1] : null;
+    const mult = buyMultiplier(prevClose, prevEma, prevEmaW, p);
 
     if (inRange && dueDca && mult > 0) {
       lastBuySession = i;
@@ -608,6 +661,9 @@ function runBacktest(rows, p) {
       totalUnits += money / closes[i];   // khớp tại NAV phiên nay
       totalBuys++;
       sumBuyMult += mult;
+      curWkSpend += money;
+      if (mult > maxBuyMult) maxBuyMult = mult;
+      if (mult <= 1.0) buysAtFloor++;
       buys.push({ time: t, price: closes[i], mult, idx: i });
       cfT.push((t - firstBuyTime) / YEAR_MS);
       cfA.push(-money);
@@ -653,11 +709,16 @@ function runBacktest(rows, p) {
   // Còn bao nhiêu phiên tới kỳ DCA tiếp theo (theo mô phỏng)
   const nextDcaIn = lastBuySession !== null ? Math.max(0, p.dcaDays - ((n - 1) - lastBuySession)) : 0;
 
+  if (curWkKey !== null) wkSpend.push(curWkSpend);
+  const cashflow = wkSpend.length ? window.DCAEngine.cashflowStats(wkSpend) : null;
+  const nWeeks = wkSpend.length;
+  const weeksWithBuy = wkSpend.filter(x => x > 0).length;
   return {
     ema, buys, breakevenLine,
     totalInvested, totalUnits, totalBuys, sumBuyMult,
     finalAssetValue, finalProfitPct, finalYears, breakeven,
     finalPrice, minPnlPct, irrPct, nextDcaIn,
+    cashflow, nWeeks, weeksWithBuy, maxBuyMult, buysAtFloor,
   };
 }
 
@@ -668,17 +729,23 @@ function isBtcAsset(sym) { return (sym || state.active) === "BTC"; }
 
 // Hệ số mua theo vị trí giá so với EMA200 (giá & ema của phiên đang xét).
 // Dưới EMA: càng rẻ mua càng nhiều (+1x mỗi bước, sàn 1x).
-// Tại/trên EMA: chế độ "belowOnly" → 0 (không mua); "always" + bật hệ số → giảm 0.1x mỗi bước, sàn 0.1x; tắt hệ số → 1x.
-function buyMultiplier(close, ema, p) {
-  if (close == null || ema == null || ema <= 0) return p.buyMode === "belowOnly" ? 0 : 1;
-  const pct = (close - ema) / ema * 100;               // >0 trên EMA, ≤0 dưới/bằng
-  if (pct < 0) {                                        // DƯỚI EMA
-    if (!p.enableMult) return 1;
-    return Math.max(1, Math.round((-pct / p.stepPctBuy) * 10) / 10);
-  }
-  if (p.buyMode === "belowOnly") return 0;             // TẠI/TRÊN EMA — chỉ mua dưới → bỏ qua
+// Tại/trên EMA200 ngày: chế độ "belowOnly" → 0 (không mua); "always" → luôn 1x.
+// (Bản cũ giảm dần 0.1x khi giá trên EMA — đã bỏ, giống chỉ báo Pine v3.)
+function buyMultiplier(close, emaD, emaW, p) {
+  // MỎ NEO ĐÔI — giống hệt chỉ báo Pine v3.
+  // Neo 1 (EMA200 ngày) cho sàn 1x; neo 2 (EMA200 tuần) chỉ cộng thêm khi
+  // NAV rơi xuống dưới cả đường tuần. Không còn mua-trong-uptrend (đã bỏ ở Pine).
+  if (close == null || emaD == null || emaD <= 0) return p.buyMode === "belowOnly" ? 0 : 1;
+  const belowD = close < emaD;
+  if (!belowD && p.buyMode === "belowOnly") return 0;
   if (!p.enableMult) return 1;
-  return Math.max(0.1, Math.round((1 - 0.1 * (pct / p.stepPctBuy)) * 10) / 10);
+  const stepD = Math.max(0.1, p.stepPctBuy || 3);
+  const stepW = Math.max(0.1, p.stepPctW || stepD);
+  const cap   = Math.max(1, p.multCap || 10);
+  const anchorD = belowD ? Math.max(1, ((emaD - close) / emaD * 100) / stepD) : 1;
+  let anchorW = 0;
+  if (emaW != null && emaW > 0 && close < emaW) anchorW = ((emaW - close) / emaW * 100) / stepW;
+  return Math.min(cap, Math.max(1, Math.round((anchorD + anchorW) * 10) / 10));
 }
 
 function todayStatus(rows, p) {
@@ -691,7 +758,7 @@ function todayStatus(rows, p) {
   const pctW = eW !== null ? (c - eW) / eW * 100 : null;
   const below = c < e;
   const belowW = eW !== null && c < eW;
-  const mult = buyMultiplier(c, e, p);
+  const mult = buyMultiplier(c, e, eW, p);
   return { nav: c, ema: e, emaW: eW, pctD, pctW, below, belowW, mult, date: rows[i][0] };
 }
 
@@ -719,6 +786,8 @@ function getParams() {
   else state.stepStd = rawStep > 0 ? rawStep : (state.stepStd || DEFAULTS.stepStd);
   p.stepStd = state.stepStd; p.stepBtc = state.stepBtc;
   p.stepPctBuy = btc ? state.stepBtc : state.stepStd;   // hiệu lực cho tài sản đang chọn
+  p.stepPctW = Math.max(0.1, parseFloat(el("stepPctW").value) || p.stepPctBuy);
+  p.multCap  = Math.max(1, parseFloat(el("multCap").value) || 10);
   p.startDate = el("startDate").value;
   p.endDate = el("endDate").value;
   p.lumpsum = Math.max(0, parseFloat(el("lumpsum").value) || 0);
@@ -741,6 +810,8 @@ function setParams(p) {
   const rb = document.querySelector('input[name="buyMode"][value="' + bm + '"]');
   if (rb) rb.checked = true;
   el("enableMult").checked = p.enableMult;
+  if (p.stepPctW != null) el("stepPctW").value = p.stepPctW;
+  if (p.multCap  != null) el("multCap").value  = p.multCap;
   el("startDate").value = p.startDate; el("endDate").value = p.endDate || "";
   el("lumpsum").value = p.lumpsum;
   el("targetMode").value = p.targetMode; el("targetValue").value = p.targetValue;
@@ -1080,6 +1151,28 @@ function applyRange(m) {
   });
 }
 
+// Thanh tỷ lệ VỐN / LÃI dưới ô Tổng tài sản: trong số tài sản đang có,
+// bao nhiêu là tiền mình bỏ ra và bao nhiêu là phần thị trường sinh ra.
+// Khi đang LỖ thì không vẽ được thanh hai đoạn — chuyển sang thể hiện khác.
+function splitBar(capital, profit) {
+  if (!(capital > 0)) return "";
+  if (profit < 0) {
+    const lossPct = Math.abs(profit) / capital * 100;
+    return `<div class="splitbar"><i class="cap" style="width:100%"></i></div>`
+      + `<div class="splitlab">`
+      + `<span>Vốn <b>${fmtCompact(capital)}</b></span>`
+      + `<span class="neg">Đang lỗ <b>${fmtCompact(profit)}</b> (${nf2.format(lossPct)}%)</span>`
+      + `</div>`;
+  }
+  const total = capital + profit;
+  const cp = capital / total * 100;
+  return `<div class="splitbar">`
+    + `<i class="cap" style="width:${cp}%"></i><i class="gain" style="width:${100 - cp}%"></i></div>`
+    + `<div class="splitlab">`
+    + `<span class="blue">Vốn <b>${fmtCompact(capital)}</b> (${Math.round(cp)}%)</span>`
+    + `<span class="pos">Lãi <b>+${fmtCompact(profit)}</b> (${Math.round(100 - cp)}%)</span>`
+    + `</div>`;
+}
 function kpi(k, v, cls = "", s = "", extra = "") {
   return `<div class="kpi">${extra ? `<div class="kpi-extra">${extra}</div>` : ""}<div class="k">${k}</div><div class="v ${cls}">${v}</div>${s ? `<div class="s">${s}</div>` : ""}</div>`;
 }
@@ -1102,6 +1195,11 @@ function render() {
   if (!fd) return;
   const rows = fd.rows;
   const bt = runBacktest(rows, p);
+  // Chuẩn so sánh: luôn chạy ngầm CÁCH 1 (mua đều, không hệ số) trên cùng
+  // khoảng thời gian & cùng tiền cơ sở, để biết cấu hình đang xem đánh đổi
+  // BAO NHIÊU VỐN lấy BAO NHIÊU GIÁ. Một mình mỗi con số đều đánh lừa được.
+  const isWay1 = p.buyMode !== "belowOnly" && !p.enableMult;
+  const btRef = isWay1 ? bt : runBacktest(rows, { ...p, buyMode: "always", enableMult: false });
 
   // Nhãn quỹ + cảnh báo EMA chưa đủ dữ liệu (góc trên trái chart)
   const dOK = emaDayEnough(rows), wOK = emaWeekEnough(rows);
@@ -1187,8 +1285,7 @@ function render() {
     ? `🥇 Vàng<br><b>${signFmt(goldBt.irrPct, "%")}</b>` : "";
 
   el("resultKpis").innerHTML =
-    kpi("Tổng tài sản", fmtMoney(bt.finalAssetValue), "",
-      "vốn đã vào " + fmtMoney(bt.totalInvested)) +
+    kpi("Tổng tài sản", fmtMoney(bt.finalAssetValue), "", splitBar(bt.totalInvested, netProfit)) +
     kpi("% Lãi / Vốn", signFmt(bt.finalProfitPct, "%"), pnlCls,
       "lãi ròng " + (netProfit >= 0 ? "+" : "") + fmtMoney(netProfit), goldPnlExtra) +
     kpi("CAGR thực (IRR)", irrText,
@@ -1200,8 +1297,8 @@ function render() {
   let groups =
     group("Hoạt động mua", [
       li("Số lệnh mua", bt.totalBuys),
-      li("Tổng Call Mua (Σx)", nf2.format(bt.sumBuyMult), "blue",
-        "Tiền thực đã mua = Σx × tiền cơ sở"),
+      li("Tổng hệ số cộng dồn", nf2.format(bt.sumBuyMult) + "x", "blue",
+        "Cộng hệ số của tất cả các lệnh. Nhân với tiền mua cơ sở ra đúng tổng vốn đã vào — tức chương trình đã tiêu bằng bấy nhiêu lệnh 1x."),
       li("Lệnh gần nhất", lastBuy
         ? fmtDate(lastBuy.time) + " (x" + (Math.round(lastBuy.mult * 10) / 10) + ")" : "—"),
       li("Thời gian", durText, "", "Tính từ lần mua đầu tiên"),
@@ -1223,6 +1320,55 @@ function render() {
         bt.irrPct !== null ? (bt.irrPct >= 0 ? "pos" : "neg") : "",
         "≥3 năm mới đáng tin. Số quá khứ, không dùng dự phóng."),
     ]);
+  // ----- Quản trị vốn: các con số quyết định bạn CHẠY NỔI cấu hình này không -----
+  // Dựng riêng, gắn vào CUỐI trang dưới dạng khối ngang trải hết chiều rộng.
+  let capitalCard = "";
+  if (bt.cashflow) {
+    const cf = bt.cashflow;
+    const wkPct = bt.nWeeks ? (bt.weeksWithBuy / bt.nWeeks * 100) : 0;
+    const floorPct = bt.totalBuys ? (bt.buysAtFloor / bt.totalBuys * 100) : 0;
+    const avgMult = bt.totalBuys ? bt.sumBuyMult / bt.totalBuys : 0;
+    const bufW = cf.bufferWeeks;
+    const bufCls = bufW == null ? "" : (bufW >= 52 ? "neg" : bufW >= 13 ? "orangec" : "pos");
+    capitalCard =
+      group("Nhịp & cường độ mua", [
+        li("Tuần có lệnh mua", nf2.format(wkPct) + "%",
+        wkPct < 40 ? "orangec" : "",
+        "Trong toàn kỳ, bao nhiêu phần trăm số tuần thực sự có ít nhất một lệnh. Bật lọc EMA thì con số này tụt hẳn — đó là gốc của mọi vấn đề dòng tiền ở các dòng dưới."),,
+        li("Hệ số",
+        nf2.format(avgMult) + "x (TB) · " + nf2.format(bt.maxBuyMult) + "x (đỉnh) · 1x ("
+          + Math.round(floorPct) + "%)", "blue",
+        "Hệ số trung bình mỗi lệnh · hệ số cao nhất từng đạt · và bao nhiêu phần trăm số lệnh vẫn chỉ ở mức 1x. Con số cuối nói thật hơn con số đỉnh: đỉnh có thể chỉ xảy ra một lần."),,
+        li("Vốn TB tuần có mua", fmtMoney(cf.avgWeekBuy), "",
+        "Một tuần bị gọi tên thì đòi bạn bao nhiêu"),,
+      ]) +
+      group("So với mua đều (Cách 1)", [
+        li("Vốn so với Cách 1",
+        isWay1 ? "— (đây là chuẩn)"
+          : (btRef.totalInvested > 0
+              ? nf2.format(bt.totalInvested / btRef.totalInvested * 100) + "%" : "—"),
+        isWay1 ? "" : (bt.totalInvested < btRef.totalInvested * 0.6 ? "neg"
+                      : bt.totalInvested > btRef.totalInvested * 1.05 ? "orangec" : "pos"),
+        "Cấu hình này đưa được bao nhiêu phần trăm số vốn so với chỉ mua đều đặn (Cách 1 tiêu " + fmtMoney(btRef.totalInvested) + "). Đây là điểm mù lớn nhất: lãi cao mà chỉ tiêu được một phần nhỏ số tiền bạn có thì không giải quyết được gì."),,
+        li("Giá vốn rẻ hơn Cách 1",
+        isWay1 ? "— (đây là chuẩn)"
+          : ((bt.breakeven > 0 && btRef.breakeven > 0)
+              ? signFmt((1 - bt.breakeven / btRef.breakeven) * 100, "%") : "—"),
+        isWay1 ? "" : ((bt.breakeven > 0 && btRef.breakeven > 0 && bt.breakeven < btRef.breakeven) ? "pos" : "neg"),
+        "Đổi lại phần vốn bỏ ra ít hơn, bạn mua được rẻ hơn bao nhiêu. Đọc CÙNG dòng trên: tiêu 30% để rẻ 8% là lỗ; tiêu 92% để rẻ 33% là lãi."),,
+      ]) +
+      group("Tiền phải chuẩn bị", [
+        li("Vốn TB mỗi tuần", fmtMoney(cf.avgWeekAll), "",
+        "Mức tiết kiệm đều bạn cần để nuôi chương trình — so thẳng với thu nhập để dành hàng tuần"),,
+        li("Đỉnh 1 tuần", fmtMoney(cf.peakWeek), "orangec",
+        "Tuần nặng nhất từng xảy ra. Một tuần nặng thì ai cũng chịu được."),
+      li("Đỉnh 1 quý", fmtMoney(cf.peakQuarter), "orangec",
+        cf.quarterWin + " tuần liên tiếp nặng nhất. Đây mới là thứ vắt cạn tài khoản, không phải một tuần đơn lẻ."),
+        li("Đệm cần có",
+        bufW == null ? "—" : (Math.round(bufW) + " tuần · " + fmtMoney(cf.bufferMoney)), bufCls,
+        "Tiền phải có sẵn từ ngày đầu để không bỏ lỡ lệnh nào. Tính bằng SỐ TUẦN nên không đổi khi bạn chỉnh cỡ lệnh"),,
+      ]);
+  }
   if (el("targetUnit")) el("targetUnit").style.display = p.targetMode === "qty" ? "none" : "";
   if (p.targetValue > 0) {
     const isVal = p.targetMode !== "qty";
@@ -1243,7 +1389,9 @@ function render() {
   groups += benchmarkTable();
   groups += holdingsPanel();
   groups += fundStatCard();
-  el("resultGroups").innerHTML = groups;
+  // Quản trị vốn đứng ĐẦU, ngay dưới dải KPI — đây là cụm quyết định
+  // bạn có chạy nổi cấu hình hay không, nên đọc trước mọi thứ khác.
+  el("resultGroups").innerHTML = capitalCard + groups;
 
   renderOverview(p);
 }
@@ -1344,9 +1492,9 @@ function fundStatCard() {
   const rows = [
     li("Xếp hạng tổng hợp", me.noScore ? "— (tham chiếu)" : me.tooYoung ? "— (quỹ chưa đủ 1 năm)" : `#${rank + 1} / ${scored.length}`, "blue", "Theo điểm tổng hợp ở tab So sánh"),
     li("Điểm tổng hợp", me.score === null ? "—" : me.score.toFixed(0) + " / 100"),
-    li("Biến động (3N)", me.vol == null ? "—" : me.vol.toFixed(1) + "%"),
-    li("Sụt tối đa (5N)", me.mdd == null ? "—" : me.mdd.toFixed(1) + "%", "neg"),
-    li("Sharpe / β", (me.sharpe == null ? "—" : me.sharpe.toFixed(2)) + " / " + (me.beta == null ? "—" : me.beta.toFixed(2)),
+    li("Biến động (3 năm)", me.vol == null ? "—" : nf2.format(me.vol) + "%/năm"),
+    li("Sụt tối đa (5 năm)", me.mdd == null ? "—" : nf2.format(me.mdd) + "%", "neg"),
+    li("Sharpe · Beta", (me.sharpe == null ? "—" : nf2.format(me.sharpe) + " (Sharpe)") + " · " + (me.beta == null ? "—" : nf2.format(me.beta) + " (β)"),
       "", "Sharpe = lợi nhuận/rủi ro · β = độ nhạy VN-Index"),
     li("Alpha (α)", me.alpha == null ? "—" : signFmt(me.alpha, "%/năm"), me.alpha == null ? "" : (me.alpha >= 0 ? "pos" : "neg")),
     li("Phí bán", me.sellText),
@@ -1357,7 +1505,7 @@ function fundStatCard() {
     if (info.owner) rows.push(li("Công ty QL", shortOwner(info.owner)));
     if (info.inceptionDate) {
       const yrs = (Date.now() - info.inceptionDate) / (365.25 * 864e5);
-      rows.push(li("Thành lập", fmtDate(info.inceptionDate) + ` · ${yrs.toFixed(1)} năm`));
+      rows.push(li("Thành lập", fmtDate(info.inceptionDate) + " · " + nf2.format(yrs) + " năm"));
     }
   }
   return group("Chỉ số & thông tin — " + sym, rows);
@@ -1925,11 +2073,11 @@ const EXP_META = {
     tip: "<b>Tăng trưởng 3 năm</b><br>NAV tăng bao nhiêu % trong 3 năm gần nhất. Tiêu chí lợi nhuận nặng nhất (20%): đủ dài để loại may mắn ngắn hạn, đủ gần để phản ánh phong độ hiện tại." },
   r1:      { name: "Tăng trưởng 1 năm",      fmt: d => signFmt(d.r1, "%"),
     tip: "<b>Tăng trưởng 1 năm</b><br>NAV tăng bao nhiêu % trong 12 tháng gần nhất — phong độ ngắn hạn, trọng số nhẹ (10%) vì dễ nhiễu." },
-  sharpe:  { name: "Sharpe (3N)",            fmt: d => d.sharpe.toFixed(2),
+  sharpe:  { name: "Sharpe (3 năm)",            fmt: d => d.sharpe.toFixed(2),
     tip: "<b>Sharpe (3 năm)</b><br>Lợi nhuận trên mỗi đơn vị rủi ro: (lãi/năm − lãi phi rủi ro 5%) ÷ biến động. Trên 1 là tốt; dưới 0 = lãi không bù nổi rủi ro. Cùng lãi 20%, quỹ đi êm có Sharpe cao hơn quỹ giật cục." },
-  mdd:     { name: "Sụt tối đa (5N)",        fmt: d => d.mdd.toFixed(1) + "%",
+  mdd:     { name: "Sụt tối đa (5 năm)",        fmt: d => nf2.format(d.mdd) + "%",
     tip: "<b>Sụt tối đa (5 năm)</b><br>Mức lỗ sâu nhất từ đỉnh xuống đáy trong 5 năm. Vd −40% = từng có lúc mất 40% nếu lỡ mua đúng đỉnh — mức \"đau\" tối đa phải chịu được khi giữ quỹ này." },
-  vol:     { name: "Biến động (3N)",         fmt: d => d.vol.toFixed(1) + "%/năm",
+  vol:     { name: "Biến động (3 năm)",         fmt: d => nf2.format(d.vol) + "%/năm",
     tip: "<b>Biến động (3 năm)</b><br>NAV dao động lên xuống mạnh cỡ nào, quy theo năm (đã tính đúng theo tần suất cập nhật NAV của quỹ). Quỹ cổ phiếu VN thường 15–25%. Thấp hơn = đi êm hơn, DCA đỡ \"say sóng\"." },
   alpha:   { name: "Alpha vs VN-Index (3N)", fmt: d => signFmt(d.alpha, "%/năm"),
     tip: "<b>Alpha (α) — 3 năm</b><br>Lợi nhuận/năm quỹ tạo ra VƯỢT mức đáng lẽ có theo độ rủi ro (beta) của nó, so với VN-Index. α&gt;0 = đội quản lý quỹ giỏi hơn thị trường sau khi trừ rủi ro; α&lt;0 = kém hơn." },
@@ -2045,7 +2193,7 @@ function renderExplain(sym) {
         cmpCell = `tốt hơn ${wp.toFixed(0)}%<span class="pbar"><i style="width:${Math.max(3, wp)}%;background:${expPctColor(wp)}"></i></span>`;
         const shortSpan = d.winSpanY < WIN_LOOKBACK_Y - WIN_HOLD_Y - 0.25;
         note = `Hạng ${wrank}/${wvals.length} — ${expPctWord(wp)}. ${d.winN} cửa sổ 1 năm`
-          + (shortSpan ? `, ngày mua chỉ trải ${d.winSpanY.toFixed(1)} năm (quỹ mới, mẫu ngắn hơn quỹ khác).` : ` trong 5 năm gần nhất.`);
+          + (shortSpan ? `, ngày mua chỉ trải ${nf2.format(d.winSpanY)} năm (quỹ mới, mẫu ngắn hơn quỹ khác).` : ` trong 5 năm gần nhất.`);
       } else {
         note = `Chưa đủ dữ liệu chung với VN-Index để có ít nhất ${WIN_MIN_N} cửa sổ 1 năm.`;
       }
@@ -2071,7 +2219,7 @@ function renderExplain(sym) {
       lines.push(vline("Rủi ro", `Chưa đủ 3 năm dữ liệu để kết luận.`));
     } else {
       const w = riskP >= 65 ? ["Thấp", "pos"] : riskP <= 35 ? ["Cao", "neg"] : ["Trung bình", ""];
-      lines.push(vline("Rủi ro", `<b class="${w[1]}">${w[0]}</b> so với nhóm — biến động ${d.vol == null ? "—" : d.vol.toFixed(1) + "%/năm"}, từng sụt sâu nhất ${d.mdd == null ? "—" : d.mdd.toFixed(1) + "%"} trong 5 năm.`));
+      lines.push(vline("Rủi ro", `<b class="${w[1]}">${w[0]}</b> so với nhóm — biến động ${d.vol == null ? "—" : nf2.format(d.vol) + "%/năm"}, từng sụt sâu nhất ${d.mdd == null ? "—" : nf2.format(d.mdd) + "%"} trong 5 năm.`));
     }
     if (retP !== null) {
       const w = retP >= 65 ? ["Nhóm đầu", "pos"] : retP <= 35 ? ["Nhóm cuối", "neg"] : ["Giữa nhóm", ""];
@@ -2347,6 +2495,24 @@ async function loadAll() {
   el("btnReset").addEventListener("click", () => { setParams({ ...DEFAULTS }); render(); });
   document.querySelectorAll(".sidebar input, .sidebar select").forEach(i =>
     i.addEventListener("change", render));
+  // --- Chọn nhanh 4 chiến thuật: chỉ là lối tắt đặt hai công tắc bên dưới ---
+  window.syncWays = function () {
+    const bmEl = document.querySelector('input[name="buyMode"]:checked');
+    const bm = bmEl ? bmEl.value : "always";
+    const mu = el("enableMult").checked ? "1" : "0";
+    document.querySelectorAll("#ways .way").forEach(b =>
+      b.classList.toggle("on", b.dataset.mode === bm && b.dataset.mult === mu));
+  };
+  document.querySelectorAll("#ways .way").forEach(b => b.addEventListener("click", () => {
+    const rb = document.querySelector('input[name="buyMode"][value="' + b.dataset.mode + '"]');
+    if (rb) rb.checked = true;
+    el("enableMult").checked = b.dataset.mult === "1";
+    syncWays(); render();
+  }));
+  document.querySelectorAll('input[name="buyMode"]').forEach(i =>
+    i.addEventListener("change", syncWays));
+  el("enableMult").addEventListener("change", syncWays);
+  syncWays();
   document.querySelectorAll("#rangeBar button").forEach(b =>
     b.addEventListener("click", () => applyRange(+b.dataset.m)));
   state.rangeMonths = 24;
