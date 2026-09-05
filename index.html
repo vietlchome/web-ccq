@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DCA EMA200 — Chứng chỉ quỹ</title>
+<title>Đầu tư tích sản DCA</title>
 <script src="https://cdn.jsdelivr.net/npm/lightweight-charts@4.2.3/dist/lightweight-charts.standalone.production.js"></script>
 <script src="engine.js"></script>
 <style>
@@ -298,7 +298,7 @@
 <body>
 
 <header>
-  <h1>📈 DCA EMA200 — Chứng chỉ quỹ</h1>
+  <h1>📈 Đầu tư tích sản DCA</h1>
   <span class="sub" id="dataStatus">—</span>
   <div class="header-actions">
     <div class="bell-wrap">
@@ -380,7 +380,7 @@
 
   <div class="main">
     <div class="symbox">
-      <input id="fundSearch" class="fundsearch" placeholder="🔎 Đổi quỹ — gõ mã, tên quỹ hoặc công ty..." autocomplete="off">
+      <input id="fundSearch" class="fundsearch" placeholder="🔎 Đổi mã — gõ mã, tên quỹ/doanh nghiệp hoặc công ty QL..." autocomplete="off">
       <div id="fundList" class="fundlist"></div>
     </div>
     <div class="rangebar" id="rangeBar">
@@ -420,7 +420,7 @@
     <div class="catbar" id="ovCats"></div>
     <table class="overview">
       <thead><tr id="ovHead">
-        <th class="sortable" data-key="sym">Quỹ <span class="arr"></span></th>
+        <th class="sortable" data-key="sym">Mã <span class="arr"></span></th>
         <th class="sortable" data-key="nav">NAV mới nhất <span class="arr"></span></th>
         <th class="sortable" data-key="date">Ngày <span class="arr"></span></th>
         <th class="sortable" data-key="ytd">YTD <span class="arr"></span></th>
@@ -448,7 +448,7 @@
     <div style="overflow-x:auto">
     <table class="overview cmp2">
       <thead><tr id="cmpHead">
-        <th class="sortable" data-key="sym">Quỹ <span class="arr"></span></th>
+        <th class="sortable" data-key="sym">Mã <span class="arr"></span></th>
         <th class="sortable" data-key="ytd" data-tip="<b>YTD</b> — Tăng trưởng NAV tính từ đầu năm nay đến hiện tại.">YTD <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="r1" data-tip="<b>1 năm</b> — Tăng trưởng NAV trong 12 tháng gần nhất.">1Y <span class="ic">ⓘ</span><span class="arr"></span></th>
         <th class="sortable" data-key="r3" data-tip="<b>3 năm</b> — Tăng trưởng NAV luỹ kế cả giai đoạn 3 năm (tổng, không phải mỗi năm).">3Y <span class="ic">ⓘ</span><span class="arr"></span></th>
@@ -485,7 +485,7 @@
     <div id="secExplain" style="display:none">
       <div class="exp-pick">
         <label for="expInput"><b>Chọn quỹ:</b></label>
-        <input id="expInput" list="expList" placeholder="Gõ mã hoặc tên quỹ (vd VESAF)..." autocomplete="off">
+        <input id="expInput" list="expList" placeholder="Gõ mã hoặc tên (vd VESAF)..." autocomplete="off">
         <datalist id="expList"></datalist>
       </div>
       <div id="expBody" class="exp-body"><p class="hint">Gõ mã quỹ ở trên (hoặc bấm một dòng ở tab So sánh) để xem giải thích điểm.</p></div>
@@ -2490,7 +2490,7 @@ function initTooltips() {
 function setActive(sym) {
   state.active = sym;
   const inp = el("fundSearch");
-  if (inp) { inp.value = ""; inp.placeholder = "🔎 " + sym + " — gõ để đổi quỹ"; }
+  if (inp) { inp.value = ""; inp.placeholder = "🔎 " + sym + " — gõ để đổi mã"; }
   updateBuyUI();              // đổi tiền tệ ô "Tiền mua cơ sở" theo tài sản (VNĐ/USD) TRƯỚC khi render
   // nhãn đường giá: quỹ = NAV, cổ phiếu/vàng/BTC = Giá
   const lv = el("legendVal");
@@ -2647,7 +2647,7 @@ function renderDataStatus(funds, updatedAt) {
   const groups = [
     ["Quỹ mở (Fmarket)", funds.filter(f => f.owner !== "ETF" && !f.isStock && (f.ccy || "VND") === "VND")],
     ["ETF (HOSE)", funds.filter(f => f.owner === "ETF")],
-    ["Cổ phiếu", funds.filter(f => f.isStock)],
+    ["Cổ phiếu VN30", funds.filter(f => f.isStock)],
     ["Vàng (USD)", funds.filter(f => f.symbol === "GOLD")],
     ["BTC (USD)", funds.filter(f => f.symbol === "BTC")],
   ];

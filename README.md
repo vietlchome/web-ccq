@@ -1,6 +1,6 @@
-# DCA EMA200 — Chứng chỉ quỹ (Fmarket)
+# Đầu tư tích sản DCA (EMA200)
 
-Web nội bộ theo dõi điểm mua DCA cho các quỹ mở VN, port từ chỉ báo TradingView **DCA EMA200** (chỉ giữ phần MUA — bỏ gợi ý bán, EMA200W, phân kì RSI vì NAV quỹ chỉ có giá close hàng ngày).
+Web nội bộ theo dõi điểm mua DCA cho quỹ mở VN, ETF, cổ phiếu VN30, vàng và BTC — port từ chỉ báo TradingView **DCA EMA200** (chỉ giữ phần MUA — bỏ gợi ý bán, EMA200W, phân kì RSI vì NAV quỹ chỉ có giá close hàng ngày).
 
 ## Cấu trúc
 
