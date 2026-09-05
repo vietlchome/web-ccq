@@ -13,12 +13,13 @@ import json
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import requests
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FUNDS_FILE = os.path.join(BASE_DIR, "funds.txt")
+STOCKS_FILE = os.path.join(BASE_DIR, "stocks.txt")
 DATA_DIR = os.path.join(BASE_DIR, "data")
 
 HEADERS = {
@@ -236,6 +237,8 @@ def get_nav_history(fund_id: int) -> list:
 
 
 # Header giả trình duyệt cho các API chỉ số (một số nhà cung cấp chặn request "lạ").
+CAFEF_URL = "https://cafef.vn/du-lieu/ajax/pagenew/datahistory/pricehistory.ashx"
+
 INDEX_HEADERS = {
     "User-Agent": ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
                    "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -254,7 +257,7 @@ def _day_ms(ts_sec) -> int:
 def _from_cafef(symbol: str) -> list:
     """Nguồn lịch sử DÀI NHẤT: CafeF (về tận ~2000). JSON ashx, không cần auth.
     symbol dạng CafeF: VN-Index → 'VNINDEX', VN30 → 'VN30'."""
-    url = "https://s.cafef.vn/Ajax/PageNew/DataHistory/PriceHistory.ashx"
+    url = CAFEF_URL
     rows, page = [], 1
     while True:
         params = {"Symbol": symbol, "StartDate": "", "EndDate": "",
@@ -544,6 +547,153 @@ def get_stock_history(sym: str) -> list:
     return [[ts, dedup[ts]] for ts in sorted(dedup)]
 
 
+# ---- Cổ phiếu niêm yết (GIÁ ĐÃ ĐIỀU CHỈNH cổ tức/chia tách) ----
+# Vì sao phải là giá điều chỉnh: NAV quỹ đã là "total return" (cổ tức tái đầu tư vào NAV),
+# còn giá cổ phiếu thô rơi một nấc đúng ngày GDKHQ. Nếu dùng giá thô, EMA200 và %lệch
+# sẽ thấy một cú "giảm" không có thật → đẻ ra tín hiệu mua giả.
+# Kiểm chứng nguồn (05/09/2026): Entrade trả close FPT 08/05/2026 = 70.92, đúng bằng
+# GiaDieuChinh của CafeF (giá thô cùng phiên là 71.9) → Entrade là giá đã điều chỉnh.
+
+
+def read_stocks() -> list:
+    """Đọc stocks.txt. Mỗi dòng: MÃ | Tên | Ngành | Sàn (chỉ MÃ là bắt buộc)."""
+    out = []
+    if not os.path.exists(STOCKS_FILE):
+        return out
+    seen = set()
+    with open(STOCKS_FILE, encoding="utf-8") as f:
+        for line in f:
+            s = line.strip()
+            if not s or s.startswith("#"):
+                continue
+            parts = [p.strip() for p in s.split("|")]
+            sym = parts[0].upper()
+            if not sym or sym in seen:
+                continue
+            seen.add(sym)
+            out.append({
+                "symbol": sym,
+                "name": (parts[1] if len(parts) > 1 and parts[1] else sym),
+                "industry": (parts[2] if len(parts) > 2 else ""),
+                "exchange": (parts[3] if len(parts) > 3 else ""),
+            })
+    return out
+
+
+def _px_entrade(sym: str) -> list:
+    """DNSE Entrade — 1 request ra cả lịch sử (~2017 trở lại đây), kèm khối lượng.
+    Trả [[ms, close, volume], ...]."""
+    url = "https://services.entrade.com.vn/chart-api/v2/ohlcs/stock"
+    params = {"from": int(datetime(2000, 1, 1, tzinfo=timezone.utc).timestamp()),
+              "to": int(datetime.now(timezone.utc).timestamp()),
+              "symbol": sym, "resolution": "1D"}
+    r = requests.get(url, params=params, headers=INDEX_HEADERS, timeout=30)
+    if r.status_code != 200:
+        raise RuntimeError(f"Entrade {r.status_code}")
+    d = r.json()
+    if not d.get("t"):
+        raise RuntimeError("Entrade rỗng")
+    vols = d.get("v") or [0] * len(d["t"])
+    return [[_day_ms(t), float(c), float(v or 0)] for t, c, v in zip(d["t"], d["c"], vols)]
+
+
+def _px_cafef(sym: str, years: int = 12) -> list:
+    """CafeF — dùng cột GiaDieuChinh. API chỉ trả ~60 phiên/lần bất kể PageSize,
+    nên phải lặp cửa sổ ~3 tháng lùi dần. Ngày truyền vào theo định dạng mm/dd/yyyy.
+    Chậm (mỗi mã vài chục request) → chỉ dùng khi Entrade chết."""
+    end = datetime.now(timezone.utc)
+    stop = end - timedelta(days=int(365.25 * years))
+    rows, empty_streak = [], 0
+    while end > stop and empty_streak < 3:
+        start = end - timedelta(days=95)
+        params = {"Symbol": sym,
+                  "StartDate": start.strftime("%m/%d/%Y"),
+                  "EndDate": end.strftime("%m/%d/%Y"),
+                  "PageIndex": 1, "PageSize": 200}
+        r = requests.get(CAFEF_URL, params=params, headers=INDEX_HEADERS, timeout=30)
+        if r.status_code != 200:
+            raise RuntimeError(f"CafeF {r.status_code}")
+        items = ((r.json().get("Data") or {}).get("Data")) or []
+        if not items:
+            empty_streak += 1
+        else:
+            empty_streak = 0
+            for it in items:
+                d = it.get("Ngay")
+                close = it.get("GiaDieuChinh")
+                if close in (None, "", "--"):
+                    close = it.get("GiaDongCua")
+                if d is None or close in (None, "", "--"):
+                    continue
+                if isinstance(close, str):
+                    close = close.replace(",", "").strip()
+                    if not close:
+                        continue
+                dt = datetime.strptime(str(d)[:10], "%d/%m/%Y").replace(tzinfo=timezone.utc)
+                vol = it.get("KhoiLuongKhopLenh") or 0
+                if isinstance(vol, str):
+                    vol = vol.replace(",", "").strip() or 0
+                rows.append([_day_ms(dt.timestamp()), float(close), float(vol)])
+        end = start
+        time.sleep(0.3)
+    if not rows:
+        raise RuntimeError("CafeF rỗng")
+    return rows
+
+
+def _px_tcbs(sym: str) -> list:
+    """TCBS — dự phòng cuối. CHƯA kiểm chứng được là giá điều chỉnh hay giá thô,
+    nên chỉ dùng khi hai nguồn trên chết (web sẽ ghi rõ nguồn đang dùng)."""
+    url = "https://apipubaggr.tcbs.com.vn/stock-insight/v2/stock/bars-long-term"
+    params = {"ticker": sym, "type": "stock", "resolution": "D",
+              "to": int(datetime.now(timezone.utc).timestamp()), "countBack": 10000}
+    r = requests.get(url, params=params, headers=INDEX_HEADERS, timeout=30)
+    if r.status_code != 200:
+        raise RuntimeError(f"TCBS {r.status_code}")
+    out = []
+    for it in (r.json().get("data") or []):
+        d, close = it.get("tradingDate"), it.get("close")
+        if d is None or close is None:
+            continue
+        if isinstance(d, (int, float)):
+            ts = _day_ms(int(d) / 1000)
+        else:
+            ts = _day_ms(datetime.strptime(str(d)[:10], "%Y-%m-%d")
+                         .replace(tzinfo=timezone.utc).timestamp())
+        out.append([ts, float(close), float(it.get("volume") or 0)])
+    return out
+
+
+def get_stock_prices(sym: str) -> tuple:
+    """Giá điều chỉnh 1 mã. Trả (rows=[[ms, giá VNĐ]], vols=[khối lượng], tên nguồn)."""
+    sources = [("Entrade", lambda: _px_entrade(sym)),
+               ("CafeF", lambda: _px_cafef(sym)),
+               ("TCBS", lambda: _px_tcbs(sym))]
+    raw, src, last = [], "", None
+    for name, fn in sources:
+        try:
+            raw = fn()
+            if raw:
+                src = name
+                print(f"  (nguồn {name})", flush=True)
+                break
+        except Exception as e:
+            last = e
+            print(f"  {name} lỗi: {e}", flush=True)
+    if not raw:
+        raise RuntimeError(f"Hết nguồn cho {sym}. Cuối: {last}")
+    dedup = {}
+    for ts, c, v in raw:
+        dedup[ts] = (c, v)
+    days = sorted(dedup)
+    rows = [[t, dedup[t][0]] for t in days]
+    vols = [dedup[t][1] for t in days]
+    # nguồn CK báo giá theo NGHÌN đồng (72.8 = 72.800đ) → quy về VNĐ cho đồng đơn vị với NAV quỹ
+    if rows and rows[-1][1] < 1000:
+        rows = [[t, v * 1000] for t, v in rows]
+    return rows, vols, src
+
+
 def main():
     funds = build_fund_list()
     if not funds:
@@ -632,6 +782,42 @@ def main():
             time.sleep(1)
         except Exception as e:
             print(f"  LỖI ETF {tk}: {e}")
+
+    # Cổ phiếu niêm yết (stocks.txt) — giá đã điều chỉnh, gom nhóm owner="Cổ phiếu VN30".
+    # Đây là tài sản THAM CHIẾU: web vẽ chart + tín hiệu DCA nhưng KHÔNG chấm điểm
+    # chung rổ với quỹ (biến động cổ phiếu đơn lẻ sẽ làm méo thang percentile).
+    used = {it["symbol"] for it in index}
+    for st in read_stocks():
+        tk = st["symbol"]
+        if tk in used:
+            print(f"  Bỏ qua cổ phiếu {tk}: trùng mã đã có (quỹ/ETF).")
+            continue
+        try:
+            print(f"Đang tải cổ phiếu {tk}...", flush=True)
+            rows, vols, src = get_stock_prices(tk)
+            if not rows:
+                print(f"  {tk}: không có dữ liệu, bỏ qua.")
+                continue
+            info = {
+                "assetType": "Cổ phiếu niêm yết", "owner": "Cổ phiếu VN30",
+                "isStock": True, "priceAdjusted": True, "priceSource": src,
+                "industry": st["industry"], "exchange": st["exchange"],
+            }
+            out = {"symbol": tk, "name": st["name"], "updatedAt": now_iso,
+                   "info": info, "rows": rows, "vols": vols}
+            with open(os.path.join(DATA_DIR, f"{tk}.json"), "w", encoding="utf-8") as f:
+                json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
+            index.append({
+                "symbol": tk, "name": st["name"], "owner": "Cổ phiếu VN30",
+                "assetType": "Cổ phiếu niêm yết", "isStock": True,
+                "industry": st["industry"], "exchange": st["exchange"],
+                "inceptionDate": None, "navChange": None, "count": len(rows),
+                "firstDate": rows[0][0], "lastDate": rows[-1][0], "lastNav": rows[-1][1],
+            })
+            print(f"  {tk}: {len(rows)} phiên, giá mới nhất {rows[-1][1]:,.0f}đ")
+            time.sleep(0.5)
+        except Exception as e:
+            print(f"  LỖI cổ phiếu {tk}: {e}")
 
     # Benchmark VNINDEX (không bắt buộc — lỗi thì web vẫn chạy, chỉ thiếu phần so sánh)
     try:

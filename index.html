@@ -190,6 +190,13 @@
   .stab { background: none; border: none; border-bottom: 2px solid transparent; color: var(--muted);
     font-size: 15px; font-weight: 600; padding: 8px 14px; cursor: pointer; }
   .stab.active { color: var(--text); border-bottom-color: var(--blue); }
+  /* nút lọc nhóm tài sản (Tổng quan & So sánh) */
+  .catbar { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 14px; }
+  .catbar button { background: var(--panel2); border: 1px solid var(--border); color: var(--muted);
+    border-radius: 999px; padding: 5px 13px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .catbar button:hover { color: var(--text); border-color: var(--blue); }
+  .catbar button.active { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .catbar button small { font-weight: 500; opacity: .7; margin-left: 5px; }
   table.cmp2 th, table.cmp2 td { white-space: nowrap; }
   .scorebar { display: inline-block; width: 46px; height: 5px; background: var(--border);
     border-radius: 3px; margin-left: 6px; vertical-align: middle; overflow: hidden; }
@@ -389,7 +396,7 @@
       <div id="chart"></div>
     </div>
     <div class="legend">
-      <span style="color:var(--text)">— <b>NAV</b></span>
+      <span style="color:var(--text)">— <b id="legendVal">NAV</b></span>
       <span class="orangec">— <b>EMA200</b></span>
       <span class="purplec">- - <b>EMA200 tuần</b></span>
       <span class="blue">— <b>Giá vốn TB</b></span>
@@ -410,6 +417,7 @@
     </div>
 
     <div id="secOverview">
+    <div class="catbar" id="ovCats"></div>
     <table class="overview">
       <thead><tr id="ovHead">
         <th class="sortable" data-key="sym">Quỹ <span class="arr"></span></th>
@@ -436,6 +444,7 @@
     </div>
 
     <div id="secCompare" style="display:none">
+    <div class="catbar" id="cmpCats"></div>
     <div style="overflow-x:auto">
     <table class="overview cmp2">
       <thead><tr id="cmpHead">
@@ -513,6 +522,23 @@ const nfUSD = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 function assetCcy(sym) {
   const f = state.funds.find(x => x.symbol === (sym || state.active));
   return (f && f.ccy) || "VND";
+}
+// Cổ phiếu niêm yết: vẫn vẽ chart + chạy tín hiệu DCA y như quỹ, nhưng là tài sản
+// THAM CHIẾU — không chấm điểm chung rổ với quỹ. Lý do: rủi ro một mã đơn lẻ khác
+// hẳn rủi ro danh mục vài chục mã của quỹ, và 30 mã biến động mạnh sẽ kéo giãn
+// thang percentile làm điểm của 40 quỹ nhảy loạn.
+function isStock(sym) {
+  const f = state.funds.find(x => x.symbol === (sym || state.active));
+  return !!(f && f.isStock);
+}
+function stockInfo(sym) {
+  const f = state.funds.find(x => x.symbol === (sym || state.active)) || {};
+  const fd = state.fundData[sym || state.active];
+  return Object.assign({}, (fd && fd.info) || {}, {name: f.name, industry: f.industry, exchange: f.exchange});
+}
+// nhãn giá trị: quỹ = NAV, cổ phiếu/vàng/BTC = Giá
+function valLabel(sym) {
+  return (isStock(sym) || assetCcy(sym) === "USD") ? "Giá" : "NAV";
 }
 function fmtMoney(v, sym) {
   return assetCcy(sym) === "USD" ? nfUSD.format(v) + " $" : nfVND.format(v) + " đ";
@@ -1205,7 +1231,7 @@ function render() {
   const dOK = emaDayEnough(rows), wOK = emaWeekEnough(rows);
   let warns = "";
   if (!wOK) warns += `<div class="cl-warn">* EMA200 tuần: mô phỏng, dữ liệu chưa đủ dài (${weekCount(rows)}/200 tuần)</div>`;
-  if (!dOK) warns += `<div class="cl-warn">* EMA200 ngày: mô phỏng, dữ liệu chưa đủ dài (${rows.length}/200 phiên)</div>`;
+  if (!dOK) warns += `<div class="cl-warn">* EMA200 ngày: mô phỏng, dữ liệu chưa đủ dài (${gridDayCount(rows)}/200 ngày lịch)</div>`;
   el("chartLabel").innerHTML =
     `<div class="cl-sym">${sym}</div><div class="cl-name">${fd.name || ""}</div>${warns}`;
 
@@ -1305,10 +1331,10 @@ function render() {
     ]) +
     group("Vốn & nắm giữ", [
       li("Tổng vốn đã vào", fmtMoney(bt.totalInvested)),
-      li("Lượng " + (assetCcy() === "USD" ? "đơn vị" : "CCQ") + " " + sym, nf2.format(bt.totalUnits)),
+      li("Lượng " + (assetCcy() === "USD" ? "đơn vị" : isStock() ? "cổ phiếu" : "CCQ") + " " + sym, nf2.format(bt.totalUnits)),
       li("Giá vốn TB", fmtMoney(bt.breakeven), "blue",
         "Giá trên mức này = đang lãi"),
-      li((assetCcy() === "USD" ? "Giá hiện tại" : "NAV hiện tại"), fmtMoney(bt.finalPrice), "purplec"),
+      li(valLabel() + " hiện tại", fmtMoney(bt.finalPrice), "purplec"),
     ]) +
     group("Hiệu quả & rủi ro", [
       li("Lãi ròng", (netProfit >= 0 ? "+" : "") + fmtMoney(netProfit), pnlCls),
@@ -1453,7 +1479,7 @@ function benchmarkTable() {
   const frames = [["YTD", "YTD"], ["1Y", "1Y"], ["3Y", "3Y"], ["5Y", "5Y"], ["10Y", "10Y"]];
   const naCol = `<span class="muted">—</span>`;
   if (!bm || !bm.rows || bm.rows.length < 2) {
-    return `<div class="sg"><h4>Tăng trưởng NAV so với VN-Index</h4>`
+    return `<div class="sg"><h4>Tăng trưởng ${valLabel(state.active)} so với VN-Index</h4>`
       + `<div class="muted" style="font-size:13px">chưa có dữ liệu VN-Index — chạy fetch_data.py</div></div>`;
   }
   const fRows = fd.rows, iRows = bm.rows;
@@ -1472,9 +1498,9 @@ function benchmarkTable() {
     return `<tr><td>${label}</td><td>${cell(gf)}</td><td>${cell(gi)}</td>${perfCell}</tr>`;
   }).join("");
   return `<div class="sg">
-    <h4>Tăng trưởng NAV so với VN-Index</h4>
+    <h4>Tăng trưởng ${valLabel(sym)} so với VN-Index</h4>
     <div class="tblwrap"><table class="cmptbl">
-      <thead><tr><th>Khung</th><th>${sym}</th><th>VN-Index</th><th title="Chênh lệch = quỹ − VN-Index (điểm %)">Hiệu suất</th></tr></thead>
+      <thead><tr><th>Khung</th><th>${sym}</th><th>VN-Index</th><th title="Chênh lệch = tài sản − VN-Index (điểm %)">Hiệu suất</th></tr></thead>
       <tbody>${rows}</tbody>
     </table></div></div>`;
 }
@@ -1488,8 +1514,84 @@ function metricsList() {
   return list;
 }
 
+
+// ---- Cổ phiếu: hai panel thay cho "Chỉ số & thông tin quỹ" và "Danh mục quỹ" ----
+// Mọi con số dưới đây suy ra từ chính chuỗi giá + khối lượng đã tải về,
+// không gọi thêm API nào — nguồn có đổi/chết cũng không làm hỏng panel.
+function stockStatCard() {
+  const sym = state.active, fd = state.fundData[sym];
+  if (!fd || !fd.rows || fd.rows.length < 2) return "";
+  const rows = fd.rows, n = rows.length, last = rows[n - 1][1], endMs = rows[n - 1][0];
+  const me = (metricsList().find(d => d.sym === sym)) || {};
+  const pct = (a, b) => (a && a > 0) ? (b - a) / a * 100 : null;
+  const chgD = pct(rows[n - 2][1], last);
+  const chgW = pct(valAtOrBefore(rows, endMs - 7 * 864e5), last);
+  const w52 = windowRows(rows, 1);
+  const hi = Math.max(...w52.map(r => r[1])), lo = Math.min(...w52.map(r => r[1]));
+  const fromHi = pct(hi, last);
+  // %lệch EMA200 ngày — cùng công thức engine dùng để ra tín hiệu mua
+  let vsEma = null;
+  if (n >= 200) {
+    const e = emaSeries(rows.map(r => r[1]), 200);
+    const eLast = e[e.length - 1];
+    if (eLast > 0) vsEma = (last - eLast) / eLast * 100;
+  }
+  // thanh khoản 20 phiên: KL bình quân và GT bình quân (tỷ đồng)
+  const vols = fd.vols || [];
+  let avgVol = null, avgVal = null;
+  if (vols.length === n && n >= 20) {
+    let sv = 0, sm = 0;
+    for (let i = n - 20; i < n; i++) { sv += vols[i] || 0; sm += (vols[i] || 0) * rows[i][1]; }
+    avgVol = sv / 20; avgVal = sm / 20 / 1e9;
+  }
+  const sg = (v, suf) => v === null ? "—" : signFmt(v, suf);
+  const cls = v => v === null ? "" : (v >= 0 ? "pos" : "neg");
+  const items = [
+    li("Giá đóng cửa", fmtMoney(last), "purplec", "Phiên " + fmtDate(endMs)),
+    li("Thay đổi 1 phiên", sg(chgD, "%"), cls(chgD)),
+    li("Thay đổi 1 tuần", sg(chgW, "%"), cls(chgW)),
+    li("Đỉnh 52 tuần", fmtMoney(hi)),
+    li("Đáy 52 tuần", fmtMoney(lo)),
+    li("Cách đỉnh 52 tuần", sg(fromHi, "%"), cls(fromHi),
+      "Giá hiện tại so với đỉnh 1 năm — càng âm sâu càng gần vùng DCA mạnh"),
+    li("So EMA200 ngày", vsEma === null ? "— (chưa đủ 200 phiên)" : signFmt(vsEma, "%"), cls(vsEma),
+      "Chính là độ rẻ mà hệ số DCA dùng để nhân tiền mua"),
+    li("KLGD TB 20 phiên", avgVol === null ? "—" : nfVND.format(Math.round(avgVol)) + " cp",
+      "", "Khối lượng khớp lệnh bình quân 20 phiên gần nhất"),
+    li("GTGD TB 20 phiên", avgVal === null ? "—" : nf2.format(avgVal) + " tỷ đ",
+      "", "Giá trị khớp lệnh bình quân — quyết định mỗi phiên giải ngân được bao nhiêu mà không đẩy giá"),
+    li("Biến động (3 năm)", me.vol == null ? "—" : nf2.format(me.vol) + "%/năm"),
+    li("Sụt tối đa (5 năm)", me.mdd == null ? "—" : nf2.format(me.mdd) + "%", "neg"),
+    li("Beta vs VN-Index", me.beta == null ? "—" : nf2.format(me.beta), "",
+      "β > 1 = nhạy hơn thị trường"),
+    li("Xếp hạng tổng hợp", "— (tham chiếu)", "blue",
+      "Cổ phiếu đơn lẻ không chấm điểm chung rổ với quỹ"),
+  ];
+  return group("Chỉ số giá — " + sym, items);
+}
+
+function stockInfoPanel() {
+  const sym = state.active, fd = state.fundData[sym];
+  if (!fd) return "";
+  const inf = stockInfo(sym), rows = fd.rows || [];
+  const yrs = rows.length ? (rows[rows.length - 1][0] - rows[0][0]) / (365.25 * 864e5) : 0;
+  const items = [
+    li("Tên doanh nghiệp", inf.name || sym),
+    li("Ngành", inf.industry || "—"),
+    li("Sàn niêm yết", inf.exchange || "—"),
+    li("Nhóm theo dõi", "Cổ phiếu VN30", "blue", "Sửa danh sách trong stocks.txt"),
+    li("Dữ liệu giá", rows.length ? rows.length + " phiên" : "—", "",
+      rows.length ? "Từ " + fmtDate(rows[0][0]) + " · " + nf2.format(yrs) + " năm" : ""),
+    li("Loại giá", "Đã điều chỉnh" + (inf.priceSource ? " · " + inf.priceSource : ""), "pos",
+      "Giá đã điều chỉnh cổ tức/chia tách. Giá thô rơi một nấc ngày GDKHQ, sẽ đẻ ra tín hiệu mua giả trên EMA200"),
+    li("", '<span class="muted" style="font-size:12px">Chưa lấy P/E, P/B, vốn hoá — panel dùng thuần dữ liệu giá.</span>'),
+  ];
+  return group("Thông tin doanh nghiệp — " + sym, items);
+}
+
 // card chỉ số & thông tin cơ bản của quỹ đang chọn (kèm xếp hạng theo điểm tổng hợp)
 function fundStatCard() {
+  if (isStock()) return stockStatCard();
   const sym = state.active, fd = state.fundData[sym], info = fd && fd.info;
   if (!fd) return "";
   const all = metricsList();
@@ -1522,6 +1624,7 @@ function fundStatCard() {
 
 // panel danh mục quỹ đang chọn: phân bổ tài sản + top ngành + top cổ phiếu
 function holdingsPanel() {
+  if (isStock()) return stockInfoPanel();
   const fd = state.fundData[state.active];
   const info = fd && fd.info;
   if (!info) return "";
@@ -1568,6 +1671,49 @@ function holdingsPanel() {
   return g1 + g2;
 }
 
+// ---------- Nhóm tài sản: nút lọc dùng chung cho bảng Tổng quan & So sánh ----------
+// Nhóm theo BẢN CHẤT tài sản, không theo "có chấm điểm hay không": thêm hàng hoá
+// (dầu, bạc) sau này thì bỏ vào nhóm "alt", thêm cổ phiếu ngoài VN30 thì đổi nhãn.
+const CAT_KEY = "dca_ema200_cat";
+const CATS = [
+  { key: "all", label: "Tất cả" },
+  { key: "fund", label: "Quỹ &amp; ETF" },
+  { key: "stock", label: "Cổ phiếu VN30" },
+  { key: "alt", label: "Vàng &amp; Crypto" },
+];
+function catOf(sym) {
+  if (isStock(sym)) return "stock";
+  if (assetCcy(sym) === "USD") return "alt";
+  return "fund";
+}
+function catMatch(sym) { return state.cat === "all" || catOf(sym) === state.cat; }
+function loadCat() {
+  let c = null;
+  try { c = localStorage.getItem(CAT_KEY); } catch (e) { }
+  return CATS.some(x => x.key === c) ? c : "fund";   // mặc định: Quỹ & ETF
+}
+function setCat(k) {
+  state.cat = k;
+  try { localStorage.setItem(CAT_KEY, k); } catch (e) { }
+  renderCats();
+  renderOverview(getParams());
+  renderCompare();
+}
+function renderCats() {
+  const counts = { all: state.funds.length };
+  for (const f of state.funds) { const c = catOf(f.symbol); counts[c] = (counts[c] || 0) + 1; }
+  // nhóm rỗng thì ẩn nút luôn (chưa tải cổ phiếu thì không hiện nút cổ phiếu)
+  const html = CATS.filter(c => c.key === "all" || counts[c.key])
+    .map(c => `<button class="${state.cat === c.key ? "active" : ""}" data-cat="${c.key}">${c.label}<small>${counts[c.key] || 0}</small></button>`)
+    .join("");
+  for (const id of ["ovCats", "cmpCats"]) {
+    const box = el(id);
+    if (!box) continue;
+    box.innerHTML = html;
+    box.querySelectorAll("button").forEach(b => b.addEventListener("click", () => setCat(b.dataset.cat)));
+  }
+}
+
 function renderOverview(p) {
   const body = el("overviewBody");
   const sort = state.ovSort || (state.ovSort = { key: null, dir: 1 });
@@ -1575,7 +1721,7 @@ function renderOverview(p) {
   const data = [];
   for (const f of state.funds) {
     const fd = state.fundData[f.symbol];
-    if (!fd) continue;
+    if (!fd || !catMatch(f.symbol)) continue;
     const st = todayStatus(fd.rows, p);
     const endMs = fd.rows[fd.rows.length - 1][0];
     const g = key => growthPct(fd.rows, frameStartMs(endMs, key), endMs);
@@ -1600,6 +1746,10 @@ function renderOverview(p) {
   // 2b) quỹ yêu thích luôn lên đầu (giữ nguyên thứ tự đã sắp trong mỗi nhóm)
   const ordered = data.filter(d => state.favs.has(d.sym))
     .concat(data.filter(d => !state.favs.has(d.sym)));
+  if (!ordered.length) {
+    body.innerHTML = `<tr><td colspan="11" class="muted">Chưa có tài sản nào trong nhóm này — chạy fetch_data.py hoặc chọn nhóm khác.</td></tr>`;
+    return;
+  }
   // 3) render
   const star = `<sup class="star" title="Dữ liệu chưa đủ dài — EMA chỉ mô phỏng">*</sup>`;
   const perf = v => v === null ? `<td class="muted">—</td>`
@@ -1811,9 +1961,13 @@ function fundMetrics(f, opts) {
   const young = rows[0][0] > endMs - 3 * 365.25 * 864e5;   // chưa đủ 3 năm
   const young5 = rows[0][0] > endMs - 5 * 365.25 * 864e5;  // chưa đủ 5 năm (cho sụt tối đa)
   const tooYoung = rows[0][0] > endMs - 1 * 365.25 * 864e5; // chưa đủ 1 năm → không chấm điểm
-  const sf = sellFeeInfo(fd.info);
+  // Phí bán là khái niệm của quỹ mở. Cổ phiếu/vàng/BTC không có → để "—",
+  // đừng hiện "miễn phí" (dễ đọc thành "bán không mất gì", trong khi cổ phiếu
+  // vẫn mất phí môi giới + thuế 0,1% giá bán).
+  const isRef = assetCcy(f.symbol) === "USD" || isStock(f.symbol);
+  const sf = isRef ? { fee: null, text: "—" } : sellFeeInfo(fd.info);
   // tỷ lệ thắng VN-Index — bỏ qua tài sản định giá USD (vàng/BTC): khác đồng tiền, so với VN-Index vô nghĩa
-  const wr = (o.light || assetCcy(f.symbol) === "USD") ? null
+  const wr = (o.light || assetCcy(f.symbol) === "USD" || isStock(f.symbol)) ? null
     : winRateVsIndex(rows, bench && bench.length ? bench : null);
   return {
     sym: f.symbol, owner: shortOwner(f.owner || ""),
@@ -1823,7 +1977,10 @@ function fundMetrics(f, opts) {
     winRate: wr ? wr.pct : null, winN: wr ? wr.n : null, winSpanY: wr ? wr.spanY : null,
     riskName: (fd.info && fd.info.risk && fd.info.risk.riskLevel && fd.info.risk.riskLevel.name) || "",
     ppy,                                                    // số kỳ NAV/năm (~252 ngày, ~52 tuần) — cho tab Giải thích
-    young, young5, tooYoung, noScore: assetCcy(f.symbol) === "USD",   // vàng/BTC: tham chiếu, không chấm điểm
+    young, young5, tooYoung,
+    // vàng/BTC (khác đồng tiền) và cổ phiếu đơn lẻ: tham chiếu, không chấm điểm
+    noScore: assetCcy(f.symbol) === "USD" || isStock(f.symbol),
+    isStock: isStock(f.symbol),
   };
 }
 
@@ -2017,6 +2174,13 @@ function renderCompare() {
     if (typeof va === "string") return va.localeCompare(vb) * sort.dir;
     return (va - vb) * sort.dir;
   });
+  // Lọc nhóm SAU khi đã chấm điểm & gán nhóm A/B/C/D: thứ hạng vẫn tính trên
+  // toàn bộ rổ quỹ, lọc chỉ là chuyện hiển thị — bấm nút không làm điểm đổi.
+  list = list.filter(d => catMatch(d.sym));
+  if (!list.length) {
+    body.innerHTML = `<tr><td colspan="14" class="muted">Chưa có tài sản nào trong nhóm này.</td></tr>`;
+    return;
+  }
   const star = `<sup class="star" title="Chưa đủ 3 năm dữ liệu — chỉ số rủi ro chỉ tham khảo">*</sup>`;
   const star5 = `<sup class="star" title="Chưa đủ 5 năm dữ liệu — sụt tối đa chỉ tính trên khoảng ngắn hơn">*</sup>`;
   const num = (v, suf = "", cls = true) => v === null || v === undefined || isNaN(v) ? `<td class="muted">—</td>`
@@ -2026,7 +2190,7 @@ function renderCompare() {
     const s = d.young ? star : "";
     const s5 = d.young5 ? star5 : "";
     const scoreBar = d.score === null
-      ? `<td class="muted" title="${d.tooYoung ? "Quỹ chưa đủ 1 năm dữ liệu — chưa đủ cơ sở chấm điểm" : "Vàng/BTC là tham chiếu — không chấm điểm chung với quỹ"}">—</td>`
+      ? `<td class="muted" title="${d.tooYoung ? "Quỹ chưa đủ 1 năm dữ liệu — chưa đủ cơ sở chấm điểm" : (d.isStock ? "Cổ phiếu đơn lẻ là tham chiếu — không chấm điểm chung với quỹ" : "Vàng/BTC là tham chiếu — không chấm điểm chung với quỹ")}">—</td>`
       : `<td data-tip="${tierTip(d)}"><span class="tier t${d.tier}">${d.tier}</span><small class="scorenum">${d.score.toFixed(0)}</small></td>`;
     const alphaCell = d.alpha === null || isNaN(d.alpha) ? `<td class="muted">—</td>`
       : `<td class="${d.alpha >= 0 ? "pos" : "neg"}">${signFmt(d.alpha, "%")}${s}</td>`;
@@ -2128,7 +2292,9 @@ function renderExplain(sym) {
   let scoreBlock, headNote = "";
   if (d.noScore) {
     scoreBlock = `<div class="exp-score"><div class="row1"><span class="num muted">—</span><span class="rankbadge">Tham chiếu</span></div></div>`;
-    headNote = `Tài sản <b>tham chiếu</b> (định giá USD) — không chấm điểm chung với quỹ VN. Các chỉ số bên dưới chỉ để so sánh bằng mắt.`;
+    headNote = d.isStock
+      ? `<b>Cổ phiếu đơn lẻ</b> — tham chiếu, không chấm điểm chung với quỹ. Một mã có thể về 0, danh mục vài chục mã của quỹ thì không: xếp chung một thang điểm là so nhầm đối tượng. Các chỉ số bên dưới chỉ để nhìn bằng mắt.`
+      : `Tài sản <b>tham chiếu</b> (định giá USD) — không chấm điểm chung với quỹ VN. Các chỉ số bên dưới chỉ để so sánh bằng mắt.`;
   } else if (d.tooYoung) {
     scoreBlock = `<div class="exp-score"><div class="row1"><span class="num muted">—</span><span class="rankbadge">Chưa chấm điểm</span></div></div>`;
     headNote = `Quỹ mới có <b>dưới 1 năm</b> dữ liệu NAV — quá ngắn để chấm điểm công bằng (chưa qua đợt điều chỉnh nào đáng kể, chưa đủ khung 1Y/3Y/5Y). Web sẽ tự chấm khi đủ 1 năm.`;
@@ -2326,6 +2492,10 @@ function setActive(sym) {
   const inp = el("fundSearch");
   if (inp) { inp.value = ""; inp.placeholder = "🔎 " + sym + " — gõ để đổi quỹ"; }
   updateBuyUI();              // đổi tiền tệ ô "Tiền mua cơ sở" theo tài sản (VNĐ/USD) TRƯỚC khi render
+  // nhãn đường giá: quỹ = NAV, cổ phiếu/vàng/BTC = Giá
+  const lv = el("legendVal");
+  if (lv) lv.textContent = valLabel(sym);
+  if (state.series && state.series.nav) state.series.nav.applyOptions({ title: valLabel(sym) });
   render();
   applyRange(state.rangeMonths !== undefined ? state.rangeMonths : 24);
 }
@@ -2359,8 +2529,14 @@ function fundTip(sym) {
   if (!f) return "";
   const parts = [`<b>${escAttr(f.name || sym)}</b>`];
   // ETF/vàng/BTC không có "công ty quản lý" theo nghĩa quỹ mở → chỉ hiện loại tài sản
-  const generic = /^(ETF|Tài sản khác)$/i.test(f.owner || "");
+  const generic = /^(ETF|Tài sản khác|Cổ phiếu VN30)$/i.test(f.owner || "");
   if (f.owner && !generic) parts.push(`Công ty QL: ${escAttr(f.owner)}`);
+  if (f.isStock) {
+    const line = [f.industry, f.exchange].filter(Boolean).join(" · ");
+    if (line) parts.push(escAttr(line));
+    parts.push("Giá đã điều chỉnh cổ tức/chia tách");
+    return parts.join("<br>");
+  }
   if (f.assetType) parts.push(escAttr(f.assetType));
   return parts.join("<br>");
 }
@@ -2388,7 +2564,21 @@ function weekCount(rows) {
   for (const r of rows) { const k = wk(r[0]); if (k !== last) { n++; last = k; } }
   return n;
 }
-function emaDayEnough(rows) { return rows.length >= 200; }         // EMA200 ngày
+// Số NGÀY LỊCH mà EMA200 ngày thực sự chạy trên (lưới T2-T6, hoặc cả 7 ngày với crypto).
+// KHÔNG đếm rows.length: quỹ công bố NAV 2 lần/tuần có 183 điểm nhưng trải 473 ngày lịch,
+// mà EMA200 ngày chạy trên LƯỚI LỊCH (toCalendarGrid điền tiếp giá trị gần nhất) nên đã đủ dài.
+// Đếm theo số điểm dữ liệu sẽ báo động giả cho mọi quỹ NAV thưa.
+const _gridLenCache = new WeakMap();
+function gridDayCount(rows) {
+  if (!rows || !rows.length) return 0;
+  let n = _gridLenCache.get(rows);
+  if (n === undefined) {
+    n = ((window.DCAEngine.toCalendarGrid(rows) || {}).times || []).length;
+    _gridLenCache.set(rows, n);
+  }
+  return n;
+}
+function emaDayEnough(rows) { return gridDayCount(rows) >= 200; }  // EMA200 ngày
 function emaWeekEnough(rows) { return weekCount(rows) >= 200; }    // EMA200 tuần
 
 // ---------- Ô tìm kiếm/đổi quỹ (kiểu TradingView) ----------
@@ -2455,8 +2645,9 @@ function renderDataStatus(funds, updatedAt) {
   const fmtD = ms => { const d = new Date(ms); return `${String(d.getUTCDate()).padStart(2, "0")}/${String(d.getUTCMonth() + 1).padStart(2, "0")}`; };
   const maxD = arr => arr.length ? fmtD(Math.max(...arr.map(f => f.lastDate))) : null;
   const groups = [
-    ["Quỹ mở (Fmarket)", funds.filter(f => f.owner !== "ETF" && (f.ccy || "VND") === "VND")],
+    ["Quỹ mở (Fmarket)", funds.filter(f => f.owner !== "ETF" && !f.isStock && (f.ccy || "VND") === "VND")],
     ["ETF (HOSE)", funds.filter(f => f.owner === "ETF")],
+    ["Cổ phiếu", funds.filter(f => f.isStock)],
     ["Vàng (USD)", funds.filter(f => f.symbol === "GOLD")],
     ["BTC (USD)", funds.filter(f => f.symbol === "BTC")],
   ];
@@ -2486,6 +2677,8 @@ async function loadAll() {
     state.gold = r.ok ? await r.json() : null;
   } catch (e) { state.gold = null; }
   // ô tìm kiếm/đổi quỹ (gom nhóm theo công ty, gõ để lọc)
+  state.cat = loadCat();
+  renderCats();
   initFundPicker();
   initOverviewSort();
   initCompareSort();

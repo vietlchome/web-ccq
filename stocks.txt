@@ -1,0 +1,40 @@
+# Danh sách cổ phiếu theo dõi (giá ĐÃ ĐIỀU CHỈNH cổ tức/chia tách)
+# Cú pháp mỗi dòng:  MÃ | Tên doanh nghiệp | Ngành | Sàn
+#   - Chỉ MÃ là bắt buộc; các phần sau để trống cũng chạy.
+#   - Dòng bắt đầu bằng # là comment.
+#   - Xoá hết dòng (hoặc xoá file) = không tải cổ phiếu nào.
+#
+# Mặc định: rổ VN30 kỳ tháng 7/2026, hiệu lực 03/08/2026
+# (thêm MCH, TCX — loại PLX, TPB). HOSE cơ cấu rổ 2 lần/năm: tháng 1 và tháng 7,
+# nhớ sửa lại file này sau mỗi kỳ, hoặc cứ giữ mã cũ nếu vẫn muốn theo dõi.
+
+ACB | Ngân hàng TMCP Á Châu           | Ngân hàng        | HOSE
+BID | Ngân hàng TMCP BIDV             | Ngân hàng        | HOSE
+BSR | Lọc hóa dầu Bình Sơn            | Dầu khí          | HOSE
+BVH | Tập đoàn Bảo Việt               | Bảo hiểm         | HOSE
+CTG | Ngân hàng TMCP VietinBank       | Ngân hàng        | HOSE
+FPT | CTCP FPT                        | Công nghệ        | HOSE
+GAS | Tổng Công ty Khí Việt Nam       | Dầu khí          | HOSE
+GVR | Tập đoàn Công nghiệp Cao su VN  | Tài nguyên       | HOSE
+HDB | Ngân hàng TMCP HDBank           | Ngân hàng        | HOSE
+HPG | Tập đoàn Hòa Phát               | Thép             | HOSE
+MBB | Ngân hàng TMCP Quân đội         | Ngân hàng        | HOSE
+MCH | CTCP Hàng tiêu dùng Masan       | Hàng tiêu dùng   |
+MSN | CTCP Tập đoàn Masan             | Hàng tiêu dùng   | HOSE
+MWG | CTCP Đầu tư Thế Giới Di Động    | Bán lẻ           | HOSE
+POW | Điện lực Dầu khí Việt Nam       | Điện             | HOSE
+SAB | Bia - Rượu - NGK Sài Gòn        | Đồ uống          | HOSE
+SSB | Ngân hàng TMCP SeABank          | Ngân hàng        | HOSE
+SSI | CTCP Chứng khoán SSI            | Chứng khoán      | HOSE
+STB | Ngân hàng TMCP Sacombank        | Ngân hàng        | HOSE
+TCB | Ngân hàng TMCP Techcombank      | Ngân hàng        | HOSE
+TCX | CTCP Chứng khoán Kỹ Thương      | Chứng khoán      |
+VCB | Ngân hàng TMCP Vietcombank      | Ngân hàng        | HOSE
+VHM | CTCP Vinhomes                   | Bất động sản     | HOSE
+VIB | Ngân hàng TMCP Quốc tế VN       | Ngân hàng        | HOSE
+VIC | Tập đoàn Vingroup               | Bất động sản     | HOSE
+VJC | CTCP Hàng không Vietjet         | Hàng không       | HOSE
+VNM | CTCP Sữa Việt Nam Vinamilk      | Thực phẩm        | HOSE
+VPB | Ngân hàng TMCP VPBank           | Ngân hàng        | HOSE
+VPL | CTCP Vinpearl                   | Du lịch giải trí | HOSE
+VRE | CTCP Vincom Retail              | Bất động sản     | HOSE

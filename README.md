@@ -5,6 +5,7 @@ Web nội bộ theo dõi điểm mua DCA cho các quỹ mở VN, port từ chỉ
 ## Cấu trúc
 
 - `funds.txt` — danh sách quỹ theo dõi (mỗi dòng 1 mã, `#` là comment)
+- `stocks.txt` — danh sách cổ phiếu theo dõi (`MÃ | Tên | Ngành | Sàn`), mặc định rổ VN30
 - `fetch_data.py` — tải NAV lịch sử từ API Fmarket → `data/*.json`
 - `index.html` — toàn bộ web (chart + logic chỉ báo chạy trên trình duyệt)
 - `data/` — dữ liệu JSON (tự sinh, commit vào repo)
@@ -38,6 +39,25 @@ Sửa `funds.txt`, chạy lại `fetch_data.py` (hoặc đợi workflow chạy).
 - Để **theo dõi toàn bộ quỹ cổ phiếu** trên Fmarket: để 1 dòng `ALL_STOCK` trong `funds.txt` (script tự lấy hết, tự cập nhật khi có quỹ mới).
 - Để theo dõi vài quỹ cụ thể: liệt kê từng mã shortName (vd `DCDS`), mỗi dòng 1 mã.
 - Có thể trộn: `ALL_STOCK` + thêm mã quỹ trái phiếu/cân bằng muốn theo dõi.
+
+## Thêm / bớt cổ phiếu
+
+Sửa `stocks.txt` (mỗi dòng `MÃ | Tên doanh nghiệp | Ngành | Sàn`, chỉ mã là bắt buộc), chạy lại `fetch_data.py`.
+Mặc định là rổ **VN30 kỳ tháng 7/2026** (hiệu lực 03/08/2026). HOSE cơ cấu rổ 2 lần/năm (tháng 1 và 7) → nhớ sửa file sau mỗi kỳ.
+
+**Giá lấy về là giá ĐÃ ĐIỀU CHỈNH** cổ tức/chia tách. Bắt buộc phải vậy: NAV quỹ đã là total-return,
+còn giá cổ phiếu thô rơi một nấc đúng ngày GDKHQ — dùng giá thô thì EMA200 thấy một cú "giảm" không có thật
+và đẻ ra tín hiệu mua giả. Nguồn: Entrade (chính, ~2017 trở lại đây) → CafeF cột `GiaDieuChinh` (dự phòng, chậm) → TCBS.
+
+Hai bảng Tổng quan và So sánh có **dải nút lọc nhóm** (Tất cả · Quỹ & ETF · Cổ phiếu VN30 · Vàng & Crypto).
+Mặc định mở ở nhóm Quỹ & ETF, lựa chọn được nhớ trong localStorage (`dca_ema200_cat`). Lọc chỉ ảnh hưởng hiển thị —
+điểm và nhóm A/B/C/D vẫn chấm trên toàn rổ quỹ, bấm nút không làm thứ hạng đổi.
+
+Cổ phiếu là **tài sản tham chiếu**: có chart, tín hiệu DCA, backtest y như quỹ, nhưng **không chấm điểm**
+và không vào rổ chuẩn hoá ở tab So sánh — rủi ro một mã đơn lẻ khác hẳn rủi ro danh mục vài chục mã của quỹ,
+và 30 mã biến động mạnh sẽ kéo giãn thang percentile làm điểm của các quỹ nhảy loạn.
+Panel bên phải đổi thành thông tin doanh nghiệp + chỉ số giá (đỉnh/đáy 52 tuần, %cách đỉnh, %lệch EMA200,
+KLGD/GTGD bình quân 20 phiên) — tất cả suy ra từ chính chuỗi giá, không gọi thêm API nào.
 
 ## Logic chỉ báo (port từ Pine)
 
