@@ -1330,6 +1330,9 @@ function render() {
     const avgMult = bt.totalBuys ? bt.sumBuyMult / bt.totalBuys : 0;
     const bufW = cf.bufferWeeks;
     const bufCls = bufW == null ? "" : (bufW >= 52 ? "neg" : bufW >= 13 ? "orangec" : "pos");
+    const scaleF   = (!isWay1 && bt.totalInvested > 0) ? btRef.totalInvested / bt.totalInvested : 1;
+    const scaledVal = bt.finalAssetValue * scaleF;
+    const scaledDelta = (!isWay1 && btRef.finalAssetValue > 0) ? (scaledVal / btRef.finalAssetValue - 1) * 100 : null;
     capitalCard =
       group("Nhịp & cường độ mua", [
         li("Tuần có lệnh mua", nf2.format(wkPct) + "%",
@@ -1355,7 +1358,13 @@ function render() {
           : ((bt.breakeven > 0 && btRef.breakeven > 0)
               ? signFmt((1 - bt.breakeven / btRef.breakeven) * 100, "%") : "—"),
         isWay1 ? "" : ((bt.breakeven > 0 && btRef.breakeven > 0 && bt.breakeven < btRef.breakeven) ? "pos" : "neg"),
-        "Đổi lại phần vốn bỏ ra ít hơn, bạn mua được rẻ hơn bao nhiêu. Đọc CÙNG dòng trên: tiêu 30% để rẻ 8% là lỗ; tiêu 92% để rẻ 33% là lãi."),,
+        "Đổi lại phần vốn bỏ ra ít hơn, bạn mua được rẻ hơn bao nhiêu. Đọc CÙNG dòng trên: tiêu 30% để rẻ 8% là lỗ; tiêu 92% để rẻ 33% là lãi."),
+        li(isWay1 ? "Nếu cùng quy mô vốn" : "Nếu cùng quy mô vốn (×" + nf2.format(scaleF) + ")",
+        isWay1 ? "— (đây là chuẩn)"
+          : (scaledDelta === null ? "—"
+              : fmtMoney(scaledVal) + " · " + signFmt(scaledDelta, "%")),
+        isWay1 ? "" : (scaledDelta === null ? "" : (scaledDelta >= 0 ? "pos" : "neg")),
+        "Bài test công bằng: phóng to MỌI lệnh lên cùng một tỷ lệ để tiêu đúng số vốn Cách 1 đã tiêu, rồi xem tài sản cuối kỳ được bao nhiêu và hơn/kém Cách 1 (" + fmtMoney(btRef.finalAssetValue) + ") mấy phần trăm. Đây là câu trả lời thẳng cho 'ai giàu hơn khi tiêu cùng số tiền'. Nhưng phóng cỡ lệnh thì tiền đệm ở bảng dưới cũng phóng theo đúng tỷ lệ đó — phần bạn có thể không kham nổi."),
       ]) +
       group("Tiền phải chuẩn bị", [
         li("Vốn TB mỗi tuần", fmtMoney(cf.avgWeekAll), "",
