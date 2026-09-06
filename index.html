@@ -332,6 +332,7 @@
       <div class="row"><label>Chu kỳ DCA (phiên)</label><input type="number" id="dcaDays" min="1" value="5"></div>
       <div class="hint">5 phiên ≈ 1 tuần · 22 phiên ≈ 1 tháng</div>
       <div class="row"><label id="buyLabel">Tiền mua cơ sở (nghìn VNĐ)</label><input type="number" id="buyAmount" min="1" step="100" value="1000"></div>
+      <div class="row"><label title="Sức mua của tiền đổi theo thời gian. Số tiền ở ô trên được hiểu là TIỀN HÔM NAY; đặt X% thì mỗi năm lùi về quá khứ, lệnh mua nhỏ đi X%. Để 0 nếu muốn giả định số tiền cố định suốt kỳ (mặc định cũ).">Tiền điều chỉnh mỗi năm (%)</label><input type="number" id="escRate" min="0" max="25" step="0.5" value="0"></div>
       <div class="hint" id="buyHint">Đơn vị nghìn đồng · vd 500 = 500.000đ, 1000 = 1 triệu</div>
       <div class="row" style="display:block">
         <label style="display:block;margin-bottom:6px">Chế độ mua</label>
@@ -638,6 +639,12 @@ function runBacktest(rows, p) {
   const startMs = p.startDate ? Date.parse(p.startDate + "T00:00:00Z") : -Infinity;
   const endMs = p.endDate ? Date.parse(p.endDate + "T23:59:59Z") : Infinity;
   const YEAR_MS = 31557600000;
+  // NEO SỨC MUA: tiền ở ô nhập là tiền HÔM NAY (phiên cuối của dữ liệu, không
+  // phải cuối cửa sổ backtest — đổi ngày kết thúc không được đổi ý nghĩa "2tr").
+  // Lùi về quá khứ thì lệnh nhỏ lại theo luỹ thừa: base / (1+esc)^số_năm_lùi.
+  const anchorT = times[n - 1];
+  const escOf = t => p.escRate > 0
+    ? Math.pow(1 + p.escRate / 100, (t - anchorT) / YEAR_MS) : 1;
 
   let totalInvested = 0, totalUnits = 0, totalBuys = 0, sumBuyMult = 0;
   // Chi tiêu gom theo TUẦN LỊCH — nuôi các chỉ số quản trị vốn ở thẻ dưới.
@@ -665,9 +672,10 @@ function runBacktest(rows, p) {
     if (inRange && !lumpsumDone && p.lumpsum > 0) {
       lumpsumDone = true;
       firstBuyTime = t;
-      totalInvested += p.lumpsum;
-      totalUnits += p.lumpsum / closes[i];
-      cfT.push(0); cfA.push(-p.lumpsum);
+      const lumpNom = p.lumpsum * escOf(t);
+      totalInvested += lumpNom;
+      totalUnits += lumpNom / closes[i];
+      cfT.push(0); cfA.push(-lumpNom);
     }
 
     // Tín hiệu mua: dựa trên phiên TRƯỚC (fix lookahead như Pine)
@@ -682,12 +690,13 @@ function runBacktest(rows, p) {
     if (inRange && dueDca && mult > 0) {
       lastBuySession = i;
       if (firstBuyTime === null) firstBuyTime = t;
-      const money = p.buyAmount * mult;
+      const diagMoney = p.buyAmount * mult;      // tiền HÔM NAY -> nuôi bảng quản trị vốn
+      const money = diagMoney * escOf(t);        // tiền DANH NGHĨA -> thật sự rời túi
       totalInvested += money;
       totalUnits += money / closes[i];   // khớp tại NAV phiên nay
       totalBuys++;
       sumBuyMult += mult;
-      curWkSpend += money;
+      curWkSpend += diagMoney;
       if (mult > maxBuyMult) maxBuyMult = mult;
       if (mult <= 1.0) buysAtFloor++;
       buys.push({ time: t, price: closes[i], mult, idx: i });
@@ -745,6 +754,7 @@ function runBacktest(rows, p) {
     finalAssetValue, finalProfitPct, finalYears, breakeven,
     finalPrice, minPnlPct, irrPct, nextDcaIn,
     cashflow, nWeeks, weeksWithBuy, maxBuyMult, buysAtFloor,
+    firstBuyTime, anchorT, lastTime: times[li],
   };
 }
 
@@ -814,6 +824,7 @@ function getParams() {
   p.stepPctBuy = btc ? state.stepBtc : state.stepStd;   // hiệu lực cho tài sản đang chọn
   p.stepPctW = Math.max(0.1, parseFloat(el("stepPctW").value) || p.stepPctBuy);
   p.multCap  = Math.max(1, parseFloat(el("multCap").value) || 10);
+  p.escRate  = Math.min(25, Math.max(0, parseFloat(el("escRate").value) || 0));
   p.startDate = el("startDate").value;
   p.endDate = el("endDate").value;
   p.lumpsum = Math.max(0, parseFloat(el("lumpsum").value) || 0);
@@ -1369,8 +1380,20 @@ function render() {
           + Math.round(floorPct) + "%)", "blue",
         "Hệ số trung bình mỗi lệnh · hệ số cao nhất từng đạt · và bao nhiêu phần trăm số lệnh vẫn chỉ ở mức 1x. Con số cuối nói thật hơn con số đỉnh: đỉnh có thể chỉ xảy ra một lần."),,
         li("Vốn TB tuần có mua", fmtMoney(cf.avgWeekBuy), "",
-        "Một tuần bị gọi tên thì đòi bạn bao nhiêu"),,
+        "Một tuần bị gọi tên thì đòi bạn bao nhiêu"),
       ]) +
+      (p.escRate > 0 && bt.firstBuyTime ? group("Tiền mua quy đổi theo thời gian", [
+        (function () {
+          const Y = 31557600000, k = 1 + p.escRate / 100;
+          const t0 = bt.firstBuyTime, t2 = bt.anchorT, t1 = t0 + (t2 - t0) / 2;
+          const at = t => p.buyAmount * Math.pow(k, (t - t2) / Y);
+          const yr = t => new Date(t).getUTCFullYear();
+          return li("Lệnh 1x: " + yr(t0) + " · " + yr(t1) + " · nay",
+            fmtCompact(at(t0)) + " · " + fmtCompact(at(t1)) + " · " + fmtCompact(at(t2)), "blue",
+            "Số tiền ở ô 'Tiền mua cơ sở' là tiền HÔM NAY. Với mức điều chỉnh "
+            + nf2.format(p.escRate) + "%/năm, cùng sức mua đó ở quá khứ chỉ tương đương các con số này — backtest dùng đúng chúng, nên kết quả không còn bị thổi phồng bởi giả định 'lúc nào cũng có từng ấy tiền'.");
+        })(),
+      ]) : "") +
       group("So với mua đều (Cách 1)", [
         li("Vốn so với Cách 1",
         isWay1 ? "— (đây là chuẩn)"
