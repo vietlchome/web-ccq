@@ -254,42 +254,106 @@ def _day_ms(ts_sec) -> int:
                         tzinfo=timezone.utc).timestamp() * 1000)
 
 
-def _from_cafef(symbol: str) -> list:
-    """Nguồn lịch sử DÀI NHẤT: CafeF (về tận ~2000). JSON ashx, không cần auth.
-    symbol dạng CafeF: VN-Index → 'VNINDEX', VN30 → 'VN30'."""
-    url = CAFEF_URL
-    rows, page = [], 1
-    while True:
-        params = {"Symbol": symbol, "StartDate": "", "EndDate": "",
-                  "PageIndex": page, "PageSize": 5000}
-        r = requests.get(url, params=params, headers=INDEX_HEADERS, timeout=30)
+MIN_GOOD_ROWS = 500          # dưới mức này thì coi là "nghi ngờ cụt", thử tiếp nguồn khác
+
+
+def _cafef_windowed(symbol: str, years: int = 20, adjusted: bool = False) -> list:
+    """CafeF — CHỈ trả ~20-60 phiên mỗi lần gọi, BẤT KỂ PageSize (TotalCount cũng
+    chỉ báo phần trong cửa sổ). Muốn có lịch sử dài phải lặp cửa sổ ~3 tháng lùi dần.
+    Ngày truyền vào theo mm/dd/yyyy, ngày trả về (Ngay) theo dd/mm/yyyy.
+    adjusted=True → lấy cột GiaDieuChinh (giá đã điều chỉnh cổ tức/chia tách).
+    Trả [[ms, close, volume], ...]."""
+    end = datetime.now(timezone.utc)
+    stop = end - timedelta(days=int(365.25 * years))
+    rows, empty_streak = [], 0
+    while end > stop and empty_streak < 3:
+        start = end - timedelta(days=95)
+        params = {"Symbol": symbol,
+                  "StartDate": start.strftime("%m/%d/%Y"),
+                  "EndDate": end.strftime("%m/%d/%Y"),
+                  "PageIndex": 1, "PageSize": 200}
+        r = requests.get(CAFEF_URL, params=params, headers=INDEX_HEADERS, timeout=30)
         if r.status_code != 200:
-            raise RuntimeError(f"CafeF {r.status_code}: {r.text[:150]}")
+            raise RuntimeError(f"CafeF {r.status_code}")
         try:
             payload = r.json()
         except Exception:
             payload = json.loads(r.text)
-        data = (payload.get("Data") or {})
-        items = data.get("Data") or []
+        items = ((payload.get("Data") or {}).get("Data")) or []
         if not items:
-            break
-        for it in items:
-            d = it.get("Ngay")
-            close = it.get("GiaDongCua", it.get("GiaDieuChinh"))
-            if d is None or close in (None, "", "--"):
-                continue
-            if isinstance(close, str):
-                close = close.replace(",", "").strip()
-                if not close:
+            empty_streak += 1
+        else:
+            empty_streak = 0
+            for it in items:
+                d = it.get("Ngay")
+                close = it.get("GiaDieuChinh") if adjusted else it.get("GiaDongCua")
+                if close in (None, "", "--"):
+                    close = it.get("GiaDongCua") if adjusted else it.get("GiaDieuChinh")
+                if d is None or close in (None, "", "--"):
                     continue
-            dt = datetime.strptime(str(d)[:10], "%d/%m/%Y").replace(tzinfo=timezone.utc)
-            rows.append([_day_ms(dt.timestamp()), float(close)])
-        total = data.get("TotalCount") or len(items)
-        if page * 5000 >= total or len(items) < 5000:
-            break
-        page += 1
-        time.sleep(0.5)
+                if isinstance(close, str):
+                    close = close.replace(",", "").strip()
+                    if not close:
+                        continue
+                dt = datetime.strptime(str(d)[:10], "%d/%m/%Y").replace(tzinfo=timezone.utc)
+                vol = it.get("KhoiLuongKhopLenh") or 0
+                if isinstance(vol, str):
+                    vol = vol.replace(",", "").strip() or 0
+                rows.append([_day_ms(dt.timestamp()), float(close), float(vol)])
+        end = start
+        time.sleep(0.3)
+    if not rows:
+        raise RuntimeError("CafeF rỗng")
     return rows
+
+
+def _from_cafef(symbol: str) -> list:
+    """CafeF cho chỉ số/tài sản không cần điều chỉnh. [[ms, close], ...]."""
+    return [[t, c] for t, c, _v in _cafef_windowed(symbol, years=20, adjusted=False)]
+
+
+def _baseline_rows(symbol: str) -> int:
+    """Số phiên của file đã tải lần trước — dùng làm mốc 'thế là đủ' cho mã mới
+    niêm yết (TCX chỉ có 217 phiên vẫn là đủ, không phải dữ liệu cụt)."""
+    path = os.path.join(DATA_DIR, f"{symbol}.json")
+    if not os.path.exists(path):
+        return 0
+    try:
+        with open(path, encoding="utf-8") as f:
+            return len(json.load(f).get("rows") or [])
+    except Exception:
+        return 0
+
+
+def _pick_source(sources, label: str, baseline: int = 0):
+    """Thử lần lượt các nguồn và GIỮ KẾT QUẢ DÀI NHẤT, không lấy nguồn đầu tiên
+    chạy được. Lý do (đã bị dính 05/09/2026): CafeF trả 20 phiên mà vẫn là
+    'thành công' → lấy luôn thì lịch sử cụt còn 1 tháng mà không có lỗi nào.
+    Dừng sớm khi đã có nguồn đủ dài để khỏi gọi thừa: ngưỡng là MIN_GOOD_ROWS,
+    hoặc xấp xỉ số phiên của lần tải trước nếu mã đó vốn ít lịch sử (mới niêm yết).
+    Mốc cũ chỉ được tin khi nó đủ lớn (>=100), để dữ liệu đã cụt sẵn không tự
+    hợp thức hoá chính nó."""
+    good = MIN_GOOD_ROWS
+    if baseline >= 100:
+        good = min(good, int(baseline * 0.95))
+    best, best_name, last = [], "", None
+    for name, fn in sources:
+        try:
+            rows = fn()
+        except Exception as e:
+            last = e
+            print(f"  {name} lỗi: {e}", flush=True)
+            continue
+        if rows and len(rows) > len(best):
+            best, best_name = rows, name
+        if len(best) >= good:
+            break
+        if rows:
+            print(f"  {name}: chỉ {len(rows)} phiên — thử tiếp nguồn khác", flush=True)
+    if not best:
+        raise RuntimeError(f"Hết nguồn cho {label}. Cuối: {last}")
+    print(f"  (nguồn {best_name}, {len(best)} phiên)", flush=True)
+    return best, best_name
 
 
 def _from_tcbs(symbol: str) -> list:
@@ -358,23 +422,10 @@ def _from_vndirect(symbol: str) -> list:
 
 
 def get_index_history(symbol: str = "VNINDEX") -> list:
-    """Lịch sử close chỉ số, thử lần lượt nhiều nguồn cho tới khi được.
-    Trả về [[epoch_ms_ngày, close], ...] tăng dần, đã khử trùng lặp theo ngày."""
-    # Ưu tiên nguồn có lịch sử DÀI (để so được 5Y/10Y), Entrade để cuối (ngắn nhưng bền).
-    sources = [("CafeF", _from_cafef), ("VNDirect", _from_vndirect),
-               ("TCBS", _from_tcbs), ("Entrade", _from_entrade)]
-    rows, last_err = [], None
-    for name, fn in sources:
-        try:
-            rows = fn(symbol)
-            if rows:
-                print(f"  (nguồn {name})", flush=True)
-                break
-        except Exception as e:
-            last_err = e
-            print(f"  {name} lỗi: {e}", flush=True)
-    if not rows:
-        raise RuntimeError(f"Tất cả nguồn đều lỗi. Cuối: {last_err}")
+    """Lịch sử close chỉ số. [[epoch_ms_ngày, close], ...] tăng dần, khử trùng ngày."""
+    sources = [("Entrade", lambda: _from_entrade(symbol)), ("TCBS", lambda: _from_tcbs(symbol)),
+               ("CafeF", lambda: _from_cafef(symbol)), ("VNDirect", lambda: _from_vndirect(symbol))]
+    rows, _src = _pick_source(sources, symbol, _baseline_rows(symbol))
     rows.sort(key=lambda x: x[0])
     dedup = {}
     for ts, c in rows:
@@ -489,64 +540,6 @@ ETFS = [
 ]
 
 
-def _stock_entrade(sym: str) -> list:
-    url = "https://services.entrade.com.vn/chart-api/v2/ohlcs/stock"
-    frm = int(datetime(2000, 1, 1, tzinfo=timezone.utc).timestamp())
-    to = int(datetime.now(timezone.utc).timestamp())
-    r = requests.get(url, params={"from": frm, "to": to, "symbol": sym, "resolution": "1D"},
-                     headers=INDEX_HEADERS, timeout=30)
-    if r.status_code != 200:
-        raise RuntimeError(f"Entrade {r.status_code}")
-    data = r.json()
-    if not data.get("t"):
-        raise RuntimeError("Entrade rỗng")
-    return [[_day_ms(ts), float(c)] for ts, c in zip(data["t"], data["c"])]
-
-
-def _stock_tcbs(sym: str) -> list:
-    url = "https://apipubaggr.tcbs.com.vn/stock-insight/v2/stock/bars-long-term"
-    r = requests.get(url, params={"ticker": sym, "type": "stock", "resolution": "D",
-                                  "to": int(datetime.now(timezone.utc).timestamp()), "countBack": 10000},
-                     headers=INDEX_HEADERS, timeout=30)
-    if r.status_code != 200:
-        raise RuntimeError(f"TCBS {r.status_code}")
-    data = r.json().get("data") or []
-    rows = []
-    for it in data:
-        d, close = it.get("tradingDate"), it.get("close")
-        if d is None or close is None:
-            continue
-        if isinstance(d, (int, float)):
-            ts = _day_ms(int(d) / 1000)
-        else:
-            ts = _day_ms(datetime.strptime(str(d)[:10], "%Y-%m-%d").replace(tzinfo=timezone.utc).timestamp())
-        rows.append([ts, float(close)])
-    return rows
-
-
-def get_stock_history(sym: str) -> list:
-    """Lịch sử giá 1 mã niêm yết (ETF/cổ phiếu), thử nhiều nguồn. [[ms, close], ...]."""
-    sources = [("CafeF", lambda: _from_cafef(sym)), ("VNDirect", lambda: _from_vndirect(sym)),
-               ("Entrade", lambda: _stock_entrade(sym)), ("TCBS", lambda: _stock_tcbs(sym))]
-    rows, last = [], None
-    for name, fn in sources:
-        try:
-            rows = fn()
-            if rows:
-                print(f"  (nguồn {name})", flush=True)
-                break
-        except Exception as e:
-            last = e
-            print(f"  {name} lỗi: {e}", flush=True)
-    if not rows:
-        raise RuntimeError(f"Hết nguồn cho {sym}. Cuối: {last}")
-    rows.sort(key=lambda x: x[0])
-    dedup = {}
-    for ts, c in rows:
-        dedup[ts] = c
-    return [[ts, dedup[ts]] for ts in sorted(dedup)]
-
-
 # ---- Cổ phiếu niêm yết (GIÁ ĐÃ ĐIỀU CHỈNH cổ tức/chia tách) ----
 # Vì sao phải là giá điều chỉnh: NAV quỹ đã là "total return" (cổ tức tái đầu tư vào NAV),
 # còn giá cổ phiếu thô rơi một nấc đúng ngày GDKHQ. Nếu dùng giá thô, EMA200 và %lệch
@@ -597,48 +590,9 @@ def _px_entrade(sym: str) -> list:
     return [[_day_ms(t), float(c), float(v or 0)] for t, c, v in zip(d["t"], d["c"], vols)]
 
 
-def _px_cafef(sym: str, years: int = 12) -> list:
-    """CafeF — dùng cột GiaDieuChinh. API chỉ trả ~60 phiên/lần bất kể PageSize,
-    nên phải lặp cửa sổ ~3 tháng lùi dần. Ngày truyền vào theo định dạng mm/dd/yyyy.
-    Chậm (mỗi mã vài chục request) → chỉ dùng khi Entrade chết."""
-    end = datetime.now(timezone.utc)
-    stop = end - timedelta(days=int(365.25 * years))
-    rows, empty_streak = [], 0
-    while end > stop and empty_streak < 3:
-        start = end - timedelta(days=95)
-        params = {"Symbol": sym,
-                  "StartDate": start.strftime("%m/%d/%Y"),
-                  "EndDate": end.strftime("%m/%d/%Y"),
-                  "PageIndex": 1, "PageSize": 200}
-        r = requests.get(CAFEF_URL, params=params, headers=INDEX_HEADERS, timeout=30)
-        if r.status_code != 200:
-            raise RuntimeError(f"CafeF {r.status_code}")
-        items = ((r.json().get("Data") or {}).get("Data")) or []
-        if not items:
-            empty_streak += 1
-        else:
-            empty_streak = 0
-            for it in items:
-                d = it.get("Ngay")
-                close = it.get("GiaDieuChinh")
-                if close in (None, "", "--"):
-                    close = it.get("GiaDongCua")
-                if d is None or close in (None, "", "--"):
-                    continue
-                if isinstance(close, str):
-                    close = close.replace(",", "").strip()
-                    if not close:
-                        continue
-                dt = datetime.strptime(str(d)[:10], "%d/%m/%Y").replace(tzinfo=timezone.utc)
-                vol = it.get("KhoiLuongKhopLenh") or 0
-                if isinstance(vol, str):
-                    vol = vol.replace(",", "").strip() or 0
-                rows.append([_day_ms(dt.timestamp()), float(close), float(vol)])
-        end = start
-        time.sleep(0.3)
-    if not rows:
-        raise RuntimeError("CafeF rỗng")
-    return rows
+def _px_cafef(sym: str, years: int = 20) -> list:
+    """CafeF cho cổ phiếu — cột GiaDieuChinh. Chậm (mỗi mã vài chục request)."""
+    return _cafef_windowed(sym, years=years, adjusted=True)
 
 
 def _px_tcbs(sym: str) -> list:
@@ -665,23 +619,12 @@ def _px_tcbs(sym: str) -> list:
 
 
 def get_stock_prices(sym: str) -> tuple:
-    """Giá điều chỉnh 1 mã. Trả (rows=[[ms, giá VNĐ]], vols=[khối lượng], tên nguồn)."""
+    """Giá điều chỉnh 1 mã niêm yết (cổ phiếu/ETF).
+    Trả (rows=[[ms, giá VNĐ]], vols=[khối lượng], tên nguồn)."""
     sources = [("Entrade", lambda: _px_entrade(sym)),
-               ("CafeF", lambda: _px_cafef(sym)),
-               ("TCBS", lambda: _px_tcbs(sym))]
-    raw, src, last = [], "", None
-    for name, fn in sources:
-        try:
-            raw = fn()
-            if raw:
-                src = name
-                print(f"  (nguồn {name})", flush=True)
-                break
-        except Exception as e:
-            last = e
-            print(f"  {name} lỗi: {e}", flush=True)
-    if not raw:
-        raise RuntimeError(f"Hết nguồn cho {sym}. Cuối: {last}")
+               ("TCBS", lambda: _px_tcbs(sym)),
+               ("CafeF", lambda: _px_cafef(sym))]
+    raw, src = _pick_source(sources, sym, _baseline_rows(sym))
     dedup = {}
     for ts, c, v in raw:
         dedup[ts] = (c, v)
@@ -692,6 +635,25 @@ def get_stock_prices(sym: str) -> tuple:
     if rows and rows[-1][1] < 1000:
         rows = [[t, v * 1000] for t, v in rows]
     return rows, vols, src
+
+
+def guard_shrink(symbol: str, rows: list) -> bool:
+    """Chặn ghi đè dữ liệu dài bằng dữ liệu ngắn hơn hẳn.
+    Nguồn miễn phí có thể đột nhiên chỉ trả 1 tháng mà không báo lỗi — lần đó
+    (05/09/2026) 5 ETF và VNINDEX bị xoá sạch lịch sử. Thà giữ file cũ + hét lên."""
+    path = os.path.join(DATA_DIR, f"{symbol}.json")
+    if not os.path.exists(path):
+        return True
+    try:
+        with open(path, encoding="utf-8") as f:
+            old = json.load(f).get("rows") or []
+    except Exception:
+        return True
+    if len(old) > 100 and len(rows) < len(old) * 0.6:
+        print(f"  !! {symbol}: chỉ lấy được {len(rows)} phiên trong khi file cũ có {len(old)} "
+              f"→ GIỮ NGUYÊN FILE CŨ (nguồn đang lỗi/cụt, chạy lại sau).", flush=True)
+        return False
+    return True
 
 
 def main():
@@ -762,15 +724,16 @@ def main():
     for tk, nm in ETFS:
         try:
             print(f"Đang tải ETF {tk}...", flush=True)
-            rows = get_stock_history(tk)
+            rows, vols, src = get_stock_prices(tk)
             if not rows:
                 print(f"  {tk}: không có dữ liệu, bỏ qua.")
                 continue
-            # nguồn CK thường trả giá theo NGHÌN đồng (vd 35 = 35.000đ) → quy về VNĐ cho khớp NAV quỹ
-            if rows[-1][1] < 1000:
-                rows = [[t, v * 1000] for t, v in rows]
+            if not guard_shrink(tk, rows):
+                continue
             out = {"symbol": tk, "name": nm, "updatedAt": now_iso,
-                   "info": {"assetType": "ETF (niêm yết)", "owner": "ETF"}, "rows": rows}
+                   "info": {"assetType": "ETF (niêm yết)", "owner": "ETF",
+                            "priceAdjusted": True, "priceSource": src},
+                   "rows": rows, "vols": vols}
             with open(os.path.join(DATA_DIR, f"{tk}.json"), "w", encoding="utf-8") as f:
                 json.dump(out, f, ensure_ascii=False, separators=(",", ":"))
             index.append({
@@ -798,6 +761,8 @@ def main():
             if not rows:
                 print(f"  {tk}: không có dữ liệu, bỏ qua.")
                 continue
+            if not guard_shrink(tk, rows):
+                continue
             info = {
                 "assetType": "Cổ phiếu niêm yết", "owner": "Cổ phiếu VN30",
                 "isStock": True, "priceAdjusted": True, "priceSource": src,
@@ -823,7 +788,7 @@ def main():
     try:
         print("Đang tải VNINDEX (benchmark)...", flush=True)
         vrows = get_index_history("VNINDEX")
-        if vrows:
+        if vrows and guard_shrink("VNINDEX", vrows):
             with open(os.path.join(DATA_DIR, "VNINDEX.json"), "w", encoding="utf-8") as f:
                 json.dump({"symbol": "VNINDEX", "name": "Chỉ số VN-Index",
                            "updatedAt": now_iso, "rows": vrows},
@@ -836,7 +801,7 @@ def main():
     try:
         print("Đang tải giá vàng (XAU/USD)...", flush=True)
         grows = get_gold_history()
-        if grows:
+        if grows and guard_shrink("GOLD", grows):
             with open(os.path.join(DATA_DIR, "GOLD.json"), "w", encoding="utf-8") as f:
                 json.dump({"symbol": "GOLD", "name": "Vàng thế giới (XAU/USD)", "updatedAt": now_iso,
                            "info": {"assetType": "Vàng", "owner": "Tài sản khác", "ccy": "USD"},
@@ -853,7 +818,7 @@ def main():
     try:
         print("Đang tải giá Bitcoin (BTC/USD)...", flush=True)
         brows = get_btc_history()
-        if brows:
+        if brows and guard_shrink("BTC", brows):
             with open(os.path.join(DATA_DIR, "BTC.json"), "w", encoding="utf-8") as f:
                 json.dump({"symbol": "BTC", "name": "Bitcoin (BTC/USD)", "updatedAt": now_iso,
                            "info": {"assetType": "Crypto", "owner": "Tài sản khác", "ccy": "USD"},
@@ -869,7 +834,13 @@ def main():
     with open(os.path.join(DATA_DIR, "index.json"), "w", encoding="utf-8") as f:
         json.dump({"updatedAt": now_iso, "funds": index}, f,
                   ensure_ascii=False, separators=(",", ":"))
-    print(f"Xong. Đã ghi {len(index)}/{len(funds)} quỹ vào {DATA_DIR}")
+    kinds = {}
+    for it in index:
+        o = it.get("owner")
+        k = o if o in ("ETF", "Cổ phiếu VN30", "Tài sản khác") else "quỹ mở"
+        kinds[k] = kinds.get(k, 0) + 1
+    tom = " · ".join(f"{v} {k}" for k, v in kinds.items())
+    print(f"Xong. Đã ghi {len(index)} tài sản ({tom}) vào {DATA_DIR}")
 
 
 if __name__ == "__main__":
