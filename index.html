@@ -60,6 +60,10 @@
   .bell-item .msg { font-size: 13px; color: var(--text); line-height: 1.35; }
   .bell-item .time { font-size: 11px; color: var(--muted); margin-top: 2px; }
   .banner { background: #7c2d12; color: #fed7aa; padding: 8px 20px; font-size: 13px; }
+  .banner.ok { background: #064e3b; color: #a7f3d0; }
+  .banner .mini { background: transparent; border: 1px solid currentColor; color: inherit;
+    border-radius: 6px; padding: 2px 9px; font-size: 12px; cursor: pointer; margin-left: 10px; }
+  .banner .mini:hover { background: rgba(255,255,255,.12); }
   .layout { display: flex; gap: 16px; padding: 16px 20px; align-items: flex-start; }
   .sidebar { width: 270px; flex-shrink: 0; background: var(--panel);
     border: 1px solid var(--border); border-radius: 10px; padding: 14px; }
@@ -308,9 +312,17 @@
         <div id="bellList" class="bell-list"></div>
       </div>
     </div>
+    <button id="btnExport" class="theme-btn" title="Tải toàn bộ thiết lập (tham số từng mã, quỹ yêu thích, giao diện) ra một file JSON — để backup hoặc mang sang máy khác">⬇ Xuất</button>
+    <button id="btnImport" class="theme-btn" title="Nạp lại thiết lập từ file JSON đã xuất">⬆ Nhập</button>
+    <input type="file" id="cfgFile" accept="application/json,.json" hidden>
     <button id="themeToggle" class="theme-btn" title="Đổi nền sáng/tối">🌙 Tối</button>
   </div>
 </header>
+<div class="banner ok" id="cfgBanner" style="display:none">
+  <span id="cfgMsg"></span>
+  <button type="button" class="mini" id="btnUndoImport" hidden>↩ Hoàn tác</button>
+  <button type="button" class="mini" id="btnCloseCfg">✕</button>
+</div>
 <div class="banner" id="sampleBanner" style="display:none">
   ⚠️ Đang hiển thị <b>DỮ LIỆU MẪU</b> (giả lập). Chạy <code>python fetch_data.py</code> để tải NAV thật từ Fmarket.
 </div>
@@ -352,8 +364,15 @@
       <h3>Thời gian backtest</h3>
       <div class="row"><label>Bắt đầu</label><input type="date" id="startDate" value="2021-01-01"></div>
       <div class="row"><label>Kết thúc</label><input type="date" id="endDate"></div>
-      <div class="row"><label>Lumpsum khởi đầu (VNĐ)</label><input type="number" id="lumpsum" min="0" step="1000000" value="0"></div>
       <div class="hint">Hoặc kéo trực tiếp 2 vạch dọc "Bắt đầu / Kết thúc" trên chart.</div>
+      <div class="row"><label id="lumpLabel">Lumpsum khởi đầu (nghìn VNĐ)</label><input type="number" id="lumpsum" min="0" step="1000" value="0"></div>
+      <div class="row" style="display:block">
+        <label style="display:block;margin-bottom:6px">Giá vào lumpsum</label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;padding:3px 0"><input type="radio" name="lumpMode" value="atStart" style="width:auto;margin:0"> Theo giá phiên đầu backtest</label>
+        <label style="display:flex;align-items:center;gap:8px;font-weight:400;cursor:pointer;padding:3px 0"><input type="radio" name="lumpMode" value="atPrice" style="width:auto;margin:0"> Theo giá vốn tự nhập</label>
+      </div>
+      <div class="row" id="lumpPriceRow"><label id="lumpPriceLabel">Giá vốn lumpsum</label><input type="number" id="lumpPrice" min="0" step="100" value="0"></div>
+      <div class="hint" id="lumpHint">Đơn vị nghìn đồng · vd 1200 = 1,2 triệu · để 0 nếu không dùng.</div>
     </div>
     <div class="grp">
       <h3>Mục tiêu tích lũy</h3>
@@ -376,7 +395,8 @@
         </select></div>
       <div class="hint">Double-click vào chart để xem toàn bộ lịch sử.</div>
     </div>
-    <button class="reset" id="btnReset">↺ Về mặc định</button>
+    <button class="reset" id="btnReset" title="Chỉ đặt lại mã đang xem, các mã khác giữ nguyên">↺ Về mặc định (mã đang xem)</button>
+    <div class="hint">Mỗi mã tự nhớ bộ tham số riêng của nó — đổi mã không mất thiết lập cũ. Mã chưa từng chỉnh sẽ kế thừa thiết lập đang dùng. Riêng nhóm "Hiển thị" dùng chung mọi mã.<br>Bảng Tổng quan vẫn chấm tín hiệu mọi mã bằng tham số của mã đang xem, để so cùng một thước đo.</div>
   </div>
 
   <div class="main">
@@ -505,12 +525,17 @@
 
 const DEFAULTS = {
   dcaDays: 5, buyAmount: 1000000, buyVnd: 1000, buyUsd: 50, buyMode: "always",
-  enableMult: false, stepPctBuy: 3, stepStd: 3, stepBtc: 5, stepPctW: 3, multCap: 10,
+  enableMult: false, stepPctBuy: 3, stepStd: 3, stepBtc: 5, stepPctW: 3, multCap: 10, escRate: 0,
   startDate: "2021-01-01", endDate: "", lumpsum: 0,
+  lumpVnd: 0, lumpUsd: 0, lumpMode: "atStart", lumpPriceVnd: 0, lumpPriceUsd: 0,
   targetMode: "qty", targetValue: 0, targetUnit: "trieu",
   showEmaW: true, showGold: false, labelMode: "all",
 };
-const LS_KEY = "dca_ema200_params_v3";
+const LS_KEY = "dca_ema200_params_v3";        // bộ tham số DÙNG GẦN NHẤT (mã mới kế thừa)
+const LS_SYM_KEY = "dca_ema200_params_sym_v1";  // { MÃ: bộ tham số riêng của mã đó }
+// Tham số "nhìn" — thuộc về người xem chứ không thuộc về tài sản, nên giữ CHUNG
+// cho mọi mã. Tắt EMA tuần ở quỹ này mà đổi mã lại thấy nó bật lên thì rất khó chịu.
+const VIEW_KEYS = ["showEmaW", "showGold", "labelMode"];
 const FAV_KEY = "dca_ema200_favs";
 const THEME_KEY = "dca_ema200_theme";
 const CHART_THEMES = {
@@ -653,6 +678,7 @@ function runBacktest(rows, p) {
   const wkSpend = []; let curWkKey = null, curWkSpend = 0;
   let maxBuyMult = 0, buysAtFloor = 0;
   let firstBuyTime = null, lastBuySession = null, lumpsumDone = false;
+  let lumpInvested = 0, lumpUnits = 0, lumpPxUsed = null;
   let minPnlPct = null;
   const cfT = [], cfA = [];           // dòng tiền cho IRR
   const buys = [];                    // {time, price, mult}
@@ -668,13 +694,21 @@ function runBacktest(rows, p) {
       while (curWkKey < wk) { wkSpend.push(curWkSpend); curWkSpend = 0; curWkKey++; }
     }
 
-    // Lumpsum tại phiên đầu tiên trong khoảng
+    // Lumpsum tại phiên đầu tiên trong khoảng. Hai chế độ:
+    //  - atStart: khớp tại giá phiên đầu backtest (hành vi cũ). Vẫn quy đổi sức
+    //    mua theo escOf vì đây là tiền "hôm nay" giả định bơm vào quá khứ.
+    //  - atPrice: người dùng ĐÃ có sẵn vị thế trước khi chạy chiến thuật này —
+    //    nhập đúng số tiền đã bỏ ra và giá vốn thật của họ. Đó là dữ kiện lịch
+    //    sử có thật nên KHÔNG quy đổi sức mua, và số lượng chia theo giá nhập.
     if (inRange && !lumpsumDone && p.lumpsum > 0) {
       lumpsumDone = true;
       firstBuyTime = t;
-      const lumpNom = p.lumpsum * escOf(t);
+      const atPrice = p.lumpMode === "atPrice" && p.lumpPrice > 0;
+      const lumpPx = atPrice ? p.lumpPrice : closes[i];
+      const lumpNom = atPrice ? p.lumpsum : p.lumpsum * escOf(t);
+      lumpInvested = lumpNom; lumpUnits = lumpNom / lumpPx; lumpPxUsed = lumpPx;
       totalInvested += lumpNom;
-      totalUnits += lumpNom / closes[i];
+      totalUnits += lumpUnits;
       cfT.push(0); cfA.push(-lumpNom);
     }
 
@@ -755,6 +789,7 @@ function runBacktest(rows, p) {
     finalPrice, minPnlPct, irrPct, nextDcaIn,
     cashflow, nWeeks, weeksWithBuy, maxBuyMult, buysAtFloor,
     firstBuyTime, anchorT, lastTime: times[li],
+    lumpInvested, lumpUnits, lumpPxUsed,
   };
 }
 
@@ -800,7 +835,25 @@ function todayStatus(rows, p) {
 
 // ---------- UI ----------
 const state = { funds: [], fundData: {}, active: null, chart: null, series: {},
-  favs: new Set(JSON.parse(localStorage.getItem(FAV_KEY) || "[]")) };
+  favs: new Set(JSON.parse(localStorage.getItem(FAV_KEY) || "[]")),
+  symParams: (() => { try { return JSON.parse(localStorage.getItem(LS_SYM_KEY) || "{}"); } catch (e) { return {}; } })() };
+
+// Mỗi mã nhớ bộ tham số riêng. Lý do: nhịp DCA, bước %, ngày bắt đầu backtest và
+// nhất là GIÁ VỐN lumpsum là chuyện của từng tài sản — giá vốn DCDS không liên
+// quan gì tới VESAF, và ngày có dữ liệu của BTC khác hẳn quỹ mở.
+function saveSymParams(sym, p) {
+  if (!sym) return;
+  state.symParams[sym] = p;
+  try { localStorage.setItem(LS_SYM_KEY, JSON.stringify(state.symParams)); } catch (e) {}
+}
+// Bộ tham số áp cho mã sắp mở: đã từng chỉnh thì dùng lại của nó, chưa từng thì
+// KẾ THỪA bộ đang dùng (đỡ phải set lại từ đầu) — trừ nhóm "Hiển thị" luôn chung.
+function paramsForSym(sym, cur) {
+  const base = state.symParams[sym] || cur;
+  const view = {};
+  VIEW_KEYS.forEach(k => { if (cur[k] !== undefined) view[k] = cur[k]; });
+  return { ...DEFAULTS, ...base, ...view };
+}
 
 function getParams() {
   const p = {};
@@ -827,7 +880,18 @@ function getParams() {
   p.escRate  = Math.min(25, Math.max(0, parseFloat(el("escRate").value) || 0));
   p.startDate = el("startDate").value;
   p.endDate = el("endDate").value;
-  p.lumpsum = Math.max(0, parseFloat(el("lumpsum").value) || 0);
+  // Lumpsum: cùng quy ước đơn vị với ô "Tiền mua cơ sở" (USD cho vàng/BTC,
+  // nghìn VNĐ cho quỹ/ETF/cổ phiếu) — nhớ riêng theo từng đồng tiền.
+  const rawLump = Math.max(0, parseFloat(el("lumpsum").value) || 0);
+  if (usd) state.lumpUsd = rawLump; else state.lumpVnd = rawLump;
+  p.lumpVnd = state.lumpVnd || 0; p.lumpUsd = state.lumpUsd || 0;
+  p.lumpsum = usd ? p.lumpUsd : p.lumpVnd * 1000;   // hiệu lực, cùng đơn vị với giá tài sản
+  const lmEl = document.querySelector('input[name="lumpMode"]:checked');
+  p.lumpMode = lmEl ? lmEl.value : DEFAULTS.lumpMode;
+  const rawLumpPx = Math.max(0, parseFloat(el("lumpPrice").value) || 0);
+  if (usd) state.lumpPriceUsd = rawLumpPx; else state.lumpPriceVnd = rawLumpPx;
+  p.lumpPriceVnd = state.lumpPriceVnd || 0; p.lumpPriceUsd = state.lumpPriceUsd || 0;
+  p.lumpPrice = usd ? p.lumpPriceUsd : p.lumpPriceVnd;
   p.targetMode = el("targetMode").value;
   p.targetValue = Math.max(0, parseFloat(el("targetValue").value) || 0);
   p.targetUnit = el("targetUnit").value;
@@ -842,19 +906,95 @@ function setParams(p) {
   state.buyUsd = p.buyUsd || DEFAULTS.buyUsd;
   state.stepStd = p.stepStd || p.stepPctBuy || DEFAULTS.stepStd;
   state.stepBtc = p.stepBtc || DEFAULTS.stepBtc;
-  updateBuyUI();   // đặt lại ô "Tiền mua" & "Bước nhảy" theo tài sản đang chọn
+  // Tương thích bản cũ: trước đây ô lumpsum nhập VNĐ THÔ, nay là nghìn VNĐ.
+  state.lumpVnd = p.lumpVnd || (p.lumpsum ? p.lumpsum / 1000 : 0);
+  state.lumpUsd = p.lumpUsd || 0;
+  state.lumpPriceVnd = p.lumpPriceVnd || 0;
+  state.lumpPriceUsd = p.lumpPriceUsd || 0;
+  const lm = document.querySelector('input[name="lumpMode"][value="' + (p.lumpMode || DEFAULTS.lumpMode) + '"]');
+  if (lm) lm.checked = true;
+  updateBuyUI();   // đặt lại ô "Tiền mua", "Bước nhảy" & "Lumpsum" theo tài sản đang chọn
   const bm = p.buyMode || (p.onlyBuyBelowEMA ? "belowOnly" : "always");   // tương thích bản cũ
   const rb = document.querySelector('input[name="buyMode"][value="' + bm + '"]');
   if (rb) rb.checked = true;
   el("enableMult").checked = p.enableMult;
   if (p.stepPctW != null) el("stepPctW").value = p.stepPctW;
   if (p.multCap  != null) el("multCap").value  = p.multCap;
+  if (p.escRate  != null) el("escRate").value  = p.escRate;
   el("startDate").value = p.startDate; el("endDate").value = p.endDate || "";
-  el("lumpsum").value = p.lumpsum;
   el("targetMode").value = p.targetMode; el("targetValue").value = p.targetValue;
   el("targetUnit").value = p.targetUnit || "trieu";
   el("showEmaW").checked = p.showEmaW; el("showGold").checked = !!p.showGold;
   el("labelMode").value = p.labelMode;
+  if (typeof syncWays === "function") syncWays();   // sáng lại nút chiến thuật tương ứng
+}
+// ---------- Xuất / nhập cấu hình ----------
+// localStorage chỉ sống trong đúng một trình duyệt trên đúng một máy: xoá cache
+// là mất sạch. Hai nút này là đường backup duy nhất, và cũng là cách bê nguyên
+// bộ thiết lập sang máy khác hoặc gửi cho người trong nhóm.
+const CFG_APP = "dca-ema200";
+function collectConfig() {
+  return {
+    app: CFG_APP, version: 1, exportedAt: new Date().toISOString(),
+    lastParams: readLastParams(),
+    symParams: JSON.parse(JSON.stringify(state.symParams || {})),
+    favs: [...state.favs],
+    theme: localStorage.getItem(THEME_KEY) || "dark",
+  };
+}
+function showCfgMsg(msg, isErr, canUndo) {
+  const bn = el("cfgBanner"), tx = el("cfgMsg"), un = el("btnUndoImport");
+  if (!bn) return;
+  tx.textContent = msg;
+  bn.classList.toggle("ok", !isErr);
+  bn.style.display = "";
+  if (un) un.hidden = !canUndo;
+}
+function exportConfig() {
+  const cfg = collectConfig();
+  const n = Object.keys(cfg.symParams).length;
+  const pad = x => String(x).padStart(2, "0"), d = new Date();
+  const url = URL.createObjectURL(new Blob([JSON.stringify(cfg, null, 2)], { type: "application/json" }));
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "dca-cau-hinh-" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + ".json";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  showCfgMsg("Đã xuất thiết lập của " + n + " mã ra file " + a.download, false, false);
+}
+// replace=false: GỘP — mã có trong file thì đè, mã khác giữ nguyên (nhập bộ của
+// người khác không xoá mất công mình đã chỉnh). replace=true: dùng cho Hoàn tác.
+function applyConfig(cfg, replace) {
+  const sp = (cfg && cfg.symParams) || {};
+  state.symParams = replace ? sp : { ...state.symParams, ...sp };
+  try { localStorage.setItem(LS_SYM_KEY, JSON.stringify(state.symParams)); } catch (e) {}
+  if (cfg && cfg.lastParams) {
+    try { localStorage.setItem(LS_KEY, JSON.stringify(cfg.lastParams)); } catch (e) {}
+  }
+  const fv = Array.isArray(cfg && cfg.favs) ? cfg.favs : [];
+  state.favs = replace ? new Set(fv) : new Set([...state.favs, ...fv]);
+  try { localStorage.setItem(FAV_KEY, JSON.stringify([...state.favs])); } catch (e) {}
+  if (cfg && cfg.theme) applyTheme(cfg.theme);
+  if (state.active) setParams(paramsForSym(state.active, readLastParams()));
+  render();
+}
+function importConfig(text, fname) {
+  let cfg;
+  try { cfg = JSON.parse(text); } catch (e) {
+    return showCfgMsg("Không đọc được file — không phải JSON hợp lệ.", true, false);
+  }
+  if (!cfg || cfg.app !== CFG_APP) {
+    return showCfgMsg("File này không phải file cấu hình của web DCA.", true, false);
+  }
+  state._cfgBackup = collectConfig();          // chụp lại bản hiện tại để hoàn tác được
+  applyConfig(cfg, false);
+  const n = Object.keys(cfg.symParams || {}).length;
+  const when = cfg.exportedAt ? " (xuất ngày " + fmtDate(Date.parse(cfg.exportedAt)) + ")" : "";
+  showCfgMsg("Đã nhập thiết lập của " + n + " mã từ \u201c" + fname + "\u201d" + when + ".", false, true);
+}
+
+function readLastParams() {
+  try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); } catch (e) { return {}; }
 }
 function el(id) { return document.getElementById(id); }
 function fmtDate(ms) {
@@ -1225,7 +1365,8 @@ function signFmt(v, suffix = "") {
 
 function render() {
   const p = getParams();
-  localStorage.setItem(LS_KEY, JSON.stringify(p));
+  try { localStorage.setItem(LS_KEY, JSON.stringify(p)); } catch (e) {}
+  saveSymParams(state.active, p);
 
   const sym = state.active;
   const fd = state.fundData[sym];
@@ -1342,6 +1483,10 @@ function render() {
     ]) +
     group("Vốn & nắm giữ", [
       li("Tổng vốn đã vào", fmtMoney(bt.totalInvested)),
+      ...(bt.lumpInvested > 0 ? [li("Trong đó lumpsum", fmtMoney(bt.lumpInvested) + " @ " + fmtMoney(bt.lumpPxUsed), "blue",
+        p.lumpMode === "atPrice" && p.lumpPrice > 0
+          ? "Vị thế có sẵn: khớp tại giá vốn bạn tự nhập"
+          : "Khớp tại giá phiên đầu tiên trong khoảng backtest")] : []),
       li("Lượng " + (assetCcy() === "USD" ? "đơn vị" : isStock() ? "cổ phiếu" : "CCQ") + " " + sym, nf2.format(bt.totalUnits)),
       li("Giá vốn TB", fmtMoney(bt.breakeven), "blue",
         "Giá trên mức này = đang lãi"),
@@ -2511,10 +2656,16 @@ function initTooltips() {
 }
 
 function setActive(sym) {
+  // Đọc form khi state.active VẪN CÒN là mã cũ — getParams() diễn giải ô "Tiền
+  // mua"/"Lumpsum" theo tiền tệ của mã đang active, đổi trước sẽ nhét số VNĐ
+  // vào ô nhớ USD.
+  const prev = state.active;
+  const cur = prev ? getParams() : { ...DEFAULTS, ...readLastParams() };
+  if (prev) saveSymParams(prev, cur);
   state.active = sym;
+  setParams(paramsForSym(sym, cur));   // gọi updateBuyUI() bên trong
   const inp = el("fundSearch");
   if (inp) { inp.value = ""; inp.placeholder = "🔎 " + sym + " — gõ để đổi mã"; }
-  updateBuyUI();              // đổi tiền tệ ô "Tiền mua cơ sở" theo tài sản (VNĐ/USD) TRƯỚC khi render
   // nhãn đường giá: quỹ = NAV, cổ phiếu/vàng/BTC = Giá
   const lv = el("legendVal");
   if (lv) lv.textContent = valLabel(sym);
@@ -2539,6 +2690,36 @@ function updateBuyUI() {
   if (stepInp) stepInp.value = isBtcAsset()
     ? (state.stepBtc || DEFAULTS.stepBtc)
     : (state.stepStd || DEFAULTS.stepStd);
+  updateLumpUI(usd);
+}
+
+// Ô lumpsum: đơn vị theo tiền tệ tài sản (đừng để "VNĐ" khi đang xem BTC),
+// và chỉ hiện ô giá vốn khi chọn chế độ "theo giá tự nhập".
+function updateLumpUI(usd) {
+  if (usd === undefined) usd = assetCcy() === "USD";
+  const inp = el("lumpsum"), lbl = el("lumpLabel"), hint = el("lumpHint");
+  if (inp) {
+    inp.value = usd ? (state.lumpUsd || 0) : (state.lumpVnd || 0);
+    inp.step = usd ? 100 : 1000;
+  }
+  if (lbl) lbl.textContent = usd ? "Lumpsum khởi đầu (USD)" : "Lumpsum khởi đầu (nghìn VNĐ)";
+  const modeEl = document.querySelector('input[name="lumpMode"]:checked');
+  const atPrice = (modeEl ? modeEl.value : DEFAULTS.lumpMode) === "atPrice";
+  const row = el("lumpPriceRow"), pIn = el("lumpPrice"), pLbl = el("lumpPriceLabel");
+  if (row) row.style.display = atPrice ? "" : "none";
+  if (pIn) {
+    pIn.value = usd ? (state.lumpPriceUsd || 0) : (state.lumpPriceVnd || 0);
+    pIn.step = usd ? 100 : 100;
+  }
+  const unitW = usd ? "đơn vị" : (isStock() ? "CP" : "CCQ");
+  if (pLbl) pLbl.textContent = "Giá vốn (" + (usd ? "USD" : "đ") + "/" + unitW + ")";
+  if (hint) hint.innerHTML = (usd
+      ? "Đơn vị USD · vd 1200 = 1.200 USD"
+      : "Đơn vị nghìn đồng · vd 1200 = 1,2 triệu")
+    + " · để 0 nếu không dùng.<br>"
+    + (atPrice
+      ? "<b>Theo giá vốn tự nhập:</b> dành cho người đã có sẵn vị thế trước khi chạy chiến thuật này — nhập đúng số tiền đã bỏ ra và giá vốn thật. Số lượng = tiền ÷ giá nhập, không quy đổi theo % điều chỉnh sức mua. Bỏ trống (0) thì rơi về giá phiên đầu."
+      : "<b>Theo giá phiên đầu backtest:</b> bơm cả cục tại " + valLabel() + " của phiên đầu tiên trong khoảng.");
 }
 
 // escape để nhét chuỗi vào thuộc tính HTML (data-tip)
@@ -2736,6 +2917,8 @@ async function loadAll() {
   }));
   document.querySelectorAll('input[name="buyMode"]').forEach(i =>
     i.addEventListener("change", syncWays));
+  document.querySelectorAll('input[name="lumpMode"]').forEach(i =>
+    i.addEventListener("change", () => updateLumpUI()));
   el("enableMult").addEventListener("change", syncWays);
   syncWays();
   document.querySelectorAll("#rangeBar button").forEach(b =>
@@ -2745,6 +2928,24 @@ async function loadAll() {
   applyTheme(localStorage.getItem(THEME_KEY) || "dark");
   el("themeToggle").addEventListener("click", () =>
     applyTheme(document.body.classList.contains("light") ? "dark" : "light"));
+  el("btnExport").addEventListener("click", exportConfig);
+  el("btnImport").addEventListener("click", () => el("cfgFile").click());
+  el("cfgFile").addEventListener("change", ev => {
+    const f = ev.target.files && ev.target.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => importConfig(String(rd.result), f.name);
+    rd.onerror = () => showCfgMsg("Không đọc được file.", true, false);
+    rd.readAsText(f);
+    ev.target.value = "";               // chọn lại đúng file đó lần nữa vẫn kích hoạt
+  });
+  el("btnUndoImport").addEventListener("click", () => {
+    if (!state._cfgBackup) return;
+    applyConfig(state._cfgBackup, true);
+    state._cfgBackup = null;
+    showCfgMsg("Đã hoàn tác — thiết lập trở về như trước khi nhập.", false, false);
+  });
+  el("btnCloseCfg").addEventListener("click", () => { el("cfgBanner").style.display = "none"; });
   initBell();
   loadAll().catch(e => {
     (el("chartLabel") || document.body).innerHTML =
