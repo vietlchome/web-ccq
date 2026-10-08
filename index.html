@@ -293,9 +293,48 @@
   button.reset { width: 100%; background: var(--panel2); color: var(--muted);
     border: 1px solid var(--border); border-radius: 6px; padding: 6px; cursor: pointer; font-size: 12px; }
   button.reset:hover { color: var(--text); }
+  /* ===== Chế độ SO SÁNH 2 tài sản ===== */
+  :root { --cA: var(--blue); --cB: #f97316; }
+  .symrow { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-start; margin-bottom: 12px; }
+  .symrow .symbox { flex: 1 1 300px; margin-bottom: 0; }
+  .vsbox .fundsearch { padding-right: 34px; border-style: dashed; }
+  .vsbox.on .fundsearch { border-style: solid; border-color: var(--cB); box-shadow: inset 4px 0 0 var(--cB); }
+  .vsclear { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); width: 24px; height: 24px;
+    border-radius: 6px; border: 1px solid var(--border); background: var(--panel2); color: var(--muted);
+    cursor: pointer; font-size: 12px; line-height: 1; }
+  .vsclear:hover { color: var(--red); border-color: var(--red); }
+  .cl-vs .a { color: var(--text); } .cl-vs .b { color: var(--cB); }
+  .chartlabel .cl-strat { font-size: 12px; color: var(--text); margin-top: 5px; }
+  .chartlabel .cl-strat .tag { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--blue);
+    border: 1px solid var(--blue); border-radius: 4px; padding: 0 5px; margin-right: 2px; }
+  .vdot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: 1px; flex-shrink: 0; }
+  .vdot.a { background: var(--text); } .vdot.b { background: var(--cB); }
+  .kpi.vsk .vrow { display: flex; align-items: baseline; gap: 6px; margin-top: 4px; }
+  .kpi.vsk .vrow .nm { font-size: 12px; color: var(--muted); font-weight: 600; min-width: 0; flex: 1;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .kpi.vsk .vrow .vv { font-size: 18px; font-weight: 700; white-space: nowrap; }
+  .kpi.vsk .vrow .vv.small { font-size: 14px; }
+  .kpi.vsk .vrow.win .nm::after { content: " ✓"; color: var(--green); }
+  .kpi.vsk .s { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); }
+  .statgroups.vs { grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); }
+  table.vstbl { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+  table.vstbl th, table.vstbl td { padding: 5px 6px; border-bottom: 1px dashed rgba(42,53,80,.45); text-align: right;
+    overflow: hidden; text-overflow: ellipsis; }
+  table.vstbl th { font-size: 11px; color: var(--muted); font-weight: 700; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  table.vstbl th.a { color: var(--text); } table.vstbl th.b { color: var(--cB); }
+  table.vstbl td:first-child, table.vstbl th:first-child { text-align: left; color: var(--muted); width: 36%; }
+  table.vstbl td:first-child { white-space: normal; }
+  table.vstbl tr:last-child td { border-bottom: none; }
+  table.vstbl td.v { font-weight: 600; white-space: nowrap; }
+  table.vstbl td.win { background: rgba(34,197,94,.10); }
+  table.vstbl td.win::after { content: " ✓"; color: var(--green); font-size: 11px; }
+  table.vstbl.w4 td:first-child, table.vstbl.w4 th:first-child { width: 18%; }
+  .vsnote { font-size: 11.5px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+  .vsnote b { color: var(--orange); font-weight: 600; }
   @media (max-width: 860px) {
     .layout { flex-direction: column; }
     .sidebar { width: 100%; }
+    .statgroups.vs { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -400,9 +439,17 @@
   </div>
 
   <div class="main">
-    <div class="symbox">
-      <input id="fundSearch" class="fundsearch" placeholder="🔎 Đổi mã — gõ mã, tên quỹ/doanh nghiệp hoặc công ty QL..." autocomplete="off">
-      <div id="fundList" class="fundlist"></div>
+    <div class="symrow">
+      <div class="symbox">
+        <input id="fundSearch" class="fundsearch" placeholder="🔎 Đổi mã — gõ mã, tên quỹ/doanh nghiệp hoặc công ty QL..." autocomplete="off">
+        <div id="fundList" class="fundlist"></div>
+      </div>
+      <div class="symbox vsbox" id="vsBox">
+        <input id="vsSearch" class="fundsearch" placeholder="＋ So sánh với mã khác..." autocomplete="off"
+          title="Chạy CÙNG chiến thuật, CÙNG khung thời gian trên tài sản thứ hai và đặt cạnh nhau">
+        <div id="vsList" class="fundlist"></div>
+        <button type="button" class="vsclear" id="vsClear" title="Bỏ so sánh" hidden>✕</button>
+      </div>
     </div>
     <div class="rangebar" id="rangeBar">
       <button data-m="6">6M</button>
@@ -416,7 +463,8 @@
       <div id="chartLabel" class="chartlabel"></div>
       <div id="chart"></div>
     </div>
-    <div class="legend">
+    <div class="legend" id="legendVs" style="display:none"></div>
+    <div class="legend" id="legendMain">
       <span style="color:var(--text)">— <b id="legendVal">NAV</b></span>
       <span class="orangec">— <b>EMA200</b></span>
       <span class="purplec">- - <b>EMA200 tuần</b></span>
@@ -542,6 +590,7 @@ const CHART_THEMES = {
   dark:  { bg: "#0f1420", text: "#8494b3", grid: "#1d2639", border: "#2a3550", nav: "#e2e8f0" },
   light: { bg: "#ffffff", text: "#5b6b83", grid: "#eaedf2", border: "#d5dbe6", nav: "#0f172a" },
 };
+const VS_COLOR = "#f97316";                     // màu tài sản thứ hai (chế độ so sánh)
 const nfVND = new Intl.NumberFormat("vi-VN", { maximumFractionDigits: 0 });
 const nfUSD = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 });
 // tiền tệ của tài sản đang chọn: quỹ mở & ETF = VND; vàng & BTC = USD
@@ -790,6 +839,7 @@ function runBacktest(rows, p) {
     cashflow, nWeeks, weeksWithBuy, maxBuyMult, buysAtFloor,
     firstBuyTime, anchorT, lastTime: times[li],
     lumpInvested, lumpUnits, lumpPxUsed,
+    lastClose: closes[n - 1],
   };
 }
 
@@ -1026,7 +1076,12 @@ function roundedRect(ctx, x, y, w, h, r) {
 
 // ---------- Overlay canvas: nhãn mua kiểu TradingView + vạch backtest kéo được ----------
 class ChartOverlay {
-  constructor() {
+  // opts.colors = [màu nhãn 1x, màu nhãn >1x]; opts.lines=false: không vẽ vạch backtest
+  // (overlay thứ hai của chế độ so sánh chỉ vẽ nhãn mua, vạch đã do overlay chính vẽ).
+  constructor(opts) {
+    const o = opts || {};
+    this.colors = o.colors || ["#22c55e", "#16a34a"];
+    this.drawLines = o.lines !== false;
     this.buys = [];                       // {time(giây), price, mult}
     this.labelMode = "all";
     this.lines = { start: null, end: null }; // thời gian (giây)
@@ -1057,7 +1112,7 @@ class ChartOverlay {
     ];
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
     for (const ld of lineDefs) {
-      if (ld.t === null) continue;
+      if (!this.drawLines || ld.t === null) continue;
       const x = ts.timeToCoordinate(ld.t);
       if (x === null) continue;
       ctx.strokeStyle = ld.color; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
@@ -1079,7 +1134,7 @@ class ChartOverlay {
       const y = this._series.priceToCoordinate(b.price);
       if (y === null) continue;
       const m = Math.round(b.mult * 10) / 10;
-      const color = m > 1 ? "#16a34a" : "#22c55e";
+      const color = m > 1 ? this.colors[1] : this.colors[0];
       ctx.fillStyle = color;
       // đẩy nhãn xuống dưới giá theo ATR (như atrOff của Pine), tối thiểu 10px
       let tipY = this._series.priceToCoordinate(b.price - (b.off || 0));
@@ -1129,12 +1184,18 @@ function initChart() {
     priceLineVisible: false, lastValueVisible: false });
   state.overlay = new ChartOverlay();
   state.series.nav.attachPrimitive(state.overlay);
+  // ----- Chế độ SO SÁNH: tài sản thứ hai + giá vốn TB của nó (cùng thang %) -----
+  state.series.vs = c.addLineSeries({ color: VS_COLOR, lineWidth: 1, title: "", priceLineVisible: false });
+  state.series.vsBk = c.addLineSeries({ color: VS_COLOR, lineWidth: 2,
+    lineStyle: LightweightCharts.LineStyle.Dashed, title: "", priceLineVisible: false, lastValueVisible: false });
+  state.overlayVs = new ChartOverlay({ colors: ["#f97316", "#c2410c"], lines: false });
+  state.series.vs.attachPrimitive(state.overlayVs);
 
   // ----- Điều khiển thang GIÁ thủ công: cuộn để giãn/nén, kéo dọc để dời (kiểu TradingView) -----
   state.priceZoom = 1;     // >1 phóng to giá; <1 thu nhỏ
   state.priceOffset = 0;   // dời thang giá lên/xuống (đơn vị giá)
   applyPriceScale();       // NAV điều khiển thang, các đường khác không kéo thang
-  for (const s of ["ema", "emaW", "bkeven", "gold"])
+  for (const s of ["ema", "emaW", "bkeven", "gold", "vs", "vsBk"])
     state.series[s].applyOptions({ autoscaleInfoProvider: () => null });
   el("chart").addEventListener("wheel", e => {
     const rect = el("chart").getBoundingClientRect();
@@ -1161,7 +1222,20 @@ function navAutoscaleProvider() {
   return (orig) => {
     const res = orig();
     if (!res || !res.priceRange) return res;
-    const { minValue, maxValue } = res.priceRange;
+    let { minValue, maxValue } = res.priceRange;
+    // Chế độ so sánh: thang phải ôm cả đường tài sản thứ hai trong vùng đang nhìn
+    // (đường đó tự tắt autoscale để không phá zoom/dời giá thủ công).
+    const vr = state.vsData && state.vsData.length && state.chart ? state.chart.timeScale().getVisibleRange() : null;
+    if (vr) {
+      const d = state.vsData;
+      let lo = 0, hi = d.length;
+      while (lo < hi) { const m = (lo + hi) >> 1; if (d[m].time < vr.from) lo = m + 1; else hi = m; }
+      for (let i = lo; i < d.length && d[i].time <= vr.to; i++) {
+        const v = d[i].value;
+        if (v < minValue) minValue = v;
+        if (v > maxValue) maxValue = v;
+      }
+    }
     const mid = (minValue + maxValue) / 2, half = (maxValue - minValue) / 2 / (state.priceZoom || 1);
     const off = state.priceOffset || 0;
     const lo = mid - half + off, hi = mid + half + off;
@@ -1372,6 +1446,10 @@ function render() {
   const fd = state.fundData[sym];
   if (!fd) return;
   const rows = fd.rows;
+  // Chế độ so sánh 2 tài sản: vẽ và dựng ô theo kiểu đặt cạnh nhau
+  const vsSym = vsActive();
+  setVsMode(!!vsSym);
+  if (vsSym) { renderVs(p, sym, vsSym); renderOverview(p); return; }
   const bt = runBacktest(rows, p);
   // Chuẩn so sánh: luôn chạy ngầm CÁCH 1 (mua đều, không hệ số) trên cùng
   // khoảng thời gian & cùng tiền cơ sở, để biết cấu hình đang xem đánh đổi
@@ -1597,6 +1675,373 @@ function render() {
   el("resultGroups").innerHTML = capitalCard + groups;
 
   renderOverview(p);
+}
+
+// ======================================================================
+// CHẾ ĐỘ SO SÁNH 2 TÀI SẢN — cùng chiến thuật, cùng khung thời gian
+// ----------------------------------------------------------------------
+// - Hai tài sản khác thang giá (DCDS ~90.000đ, VESAF ~30.000đ, BTC tính USD)
+//   nên chart chuyển sang thang % thay đổi so với phiên BẮT ĐẦU backtest —
+//   giống nút "Compare" của TradingView. EMA200 ngày/tuần và đường vàng ẩn đi.
+// - Khung thời gian là phần GIAO của hai chuỗi dữ liệu: tài sản ra đời sau
+//   ngày bắt đầu thì cả hai cùng bắt đầu từ ngày nó có dữ liệu; kết thúc lấy
+//   ngày cuối chung (BTC có giá cuối tuần, quỹ thì không).
+// - Tài sản thứ hai chạy đúng tham số của mã đang xem (không dùng bộ nhớ riêng
+//   của nó). Tiền mua lấy theo đơn vị tiền tệ của chính tài sản đó.
+// ======================================================================
+const VS_KEY = "dca_ema200_vs";
+function vsActive() {
+  const v = state.vs;
+  const fd = v && state.fundData[v];
+  return (v && v !== state.active && fd && fd.rows && fd.rows.length > 1) ? v : null;
+}
+function syncVsBox() {
+  const on = !!vsActive();
+  const box = el("vsBox"), inp = el("vsSearch"), clr = el("vsClear");
+  if (!box) return;
+  box.classList.toggle("on", on);
+  clr.hidden = !on;
+  inp.value = "";
+  inp.placeholder = on ? "⇄ So với " + state.vs + " — gõ để đổi" : "＋ So sánh với mã khác...";
+}
+function setVs(sym) {
+  state.vs = sym || null;
+  try { if (state.vs) localStorage.setItem(VS_KEY, state.vs); else localStorage.removeItem(VS_KEY); } catch (e) { }
+  syncVsBox();
+  render();
+  // thêm/bớt chuỗi thứ hai làm đổi trục thời gian (BTC có cả cuối tuần, cổ phiếu khác ngày
+  // nghỉ…) mà LWC giữ khung nhìn theo CHỈ SỐ điểm → khung trôi; đặt lại khung đang chọn.
+  applyRange(state.rangeMonths !== undefined ? state.rangeMonths : 24);
+}
+// Bật/tắt giao diện so sánh (thang %, legend, lưới ô rộng hơn). Chỉ làm khi đổi trạng thái.
+function setVsMode(on) {
+  if (state._vsMode === on) return;
+  state._vsMode = on;
+  state.chart.applyOptions({ localization: {
+    priceFormatter: on ? (v => (v >= 0 ? "+" : "") + nf2.format(v) + "%") : (v => nfVND.format(v)),
+  } });
+  el("legendMain").style.display = on ? "none" : "";
+  el("legendVs").style.display = on ? "" : "none";
+  el("resultGroups").classList.toggle("vs", on);
+  state.priceOffset = 0;                  // độ dời tính theo đơn vị giá — sang thang % là vô nghĩa
+  if (!on) {
+    state.vsData = null;
+    state.series.vs.setData([]); state.series.vsBk.setData([]);
+    state.overlayVs.buys = []; state.overlayVs.refresh();
+    state.series.nav.applyOptions({ title: valLabel() });
+  }
+  applyPriceScale();
+}
+// Tên chiến thuật đang dùng (khớp 4 nút bên trái) + tham số chính, cho góc chart khi so sánh
+function strategyLabel(p) {
+  const below = p.buyMode === "belowOnly", mult = !!p.enableMult;
+  const name = below ? (mult ? "3 · Rẻ &amp; dồn đáy" : "2 · Chỉ mua khi rẻ")
+                     : (mult ? "4 · Đều &amp; dồn đáy" : "1 · Mua đều");
+  const bits = ["mỗi " + p.dcaDays + " phiên"];
+  if (below) bits.push("chỉ khi dưới EMA200");
+  if (mult) bits.push("bước " + nf2.format(p.stepPctBuy) + "% / " + nf2.format(p.stepPctW) + "% · trần " + p.multCap + "x");
+  return `<span class="tag">Chiến thuật</span> <b>${name}</b> <span class="muted">· ${bits.join(" · ")}</span>`;
+}
+function isoDay(ms) { return new Date(ms).toISOString().slice(0, 10); }
+// Khung chung của hai tài sản (giao của khung backtest với dữ liệu cả hai)
+function vsWindow(p, rA, rB) {
+  const ps = p.startDate ? Date.parse(p.startDate + "T00:00:00Z") : -Infinity;
+  const pe = p.endDate ? Date.parse(p.endDate + "T23:59:59Z") : Infinity;
+  const s = Math.max(ps, rA[0][0], rB[0][0]);
+  const e = Math.min(pe, rA[rA.length - 1][0], rB[rB.length - 1][0]);
+  const late = rA[0][0] > rB[0][0] ? "a" : "b";        // tài sản ra đời sau
+  return { s, e, start: isoDay(s), end: isoDay(e),
+    clipped: isFinite(ps) ? isoDay(s) > p.startDate : false, late };
+}
+// Tham số cho từng tài sản: cùng chiến thuật, nhưng tiền theo đúng đơn vị tiền tệ của nó.
+function vsParamsFor(p, sym, win, isB) {
+  const usd = assetCcy(sym) === "USD";
+  const q = { ...p, startDate: win.start, endDate: win.end };
+  q.buyAmount = usd ? (p.buyUsd || DEFAULTS.buyUsd) : (p.buyVnd || DEFAULTS.buyVnd) * 1000;
+  q.stepPctBuy = isBtcAsset(sym) ? (p.stepBtc || DEFAULTS.stepBtc) : (p.stepStd || DEFAULTS.stepStd);
+  q.lumpsum = usd ? (p.lumpUsd || 0) : (p.lumpVnd || 0) * 1000;
+  q.lumpPrice = usd ? (p.lumpPriceUsd || 0) : (p.lumpPriceVnd || 0);
+  // Giá vốn tự nhập là vị thế có thật của mã đang xem — với tài sản so sánh thì
+  // vào cùng số tiền tại giá phiên đầu khung.
+  if (isB) q.lumpMode = "atStart";
+  return q;
+}
+function firstAtOrAfter(rows, ms) {
+  let lo = 0, hi = rows.length - 1;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (rows[m][0] < ms) lo = m + 1; else hi = m; }
+  return rows[lo][1];
+}
+function unitWord(sym) { return assetCcy(sym) === "USD" ? "đơn vị" : (isStock(sym) ? "cp" : "CCQ"); }
+function dcaStatusOf(bt, p) {
+  // trạng thái HÔM NAY: giá & EMA phiên cuối của dữ liệu (không phải cuối khung)
+  const emaLast = bt.ema[bt.ema.length - 1], px = bt.lastClose;
+  const below = px < emaLast;
+  const pct = (px - emaLast) / emaLast * 100;
+  if (p.buyMode === "belowOnly" && !below)
+    return { v: "chưa đủ ĐK", cls: "orangec", sub: "trên EMA200 " + signFmt(pct, "%") };
+  if (bt.nextDcaIn === 0) return { v: "ĐẾN KỲ MUA", cls: "pos", sub: "" };
+  return { v: "còn " + bt.nextDcaIn + " phiên", cls: "", sub: "" };
+}
+// so 2 số → "a" | "b" | null (dir 1 = cao hơn tốt hơn, -1 = thấp hơn tốt hơn)
+function vsPick(a, b, dir) {
+  if (!dir || a == null || b == null || !isFinite(a) || !isFinite(b) || Math.abs(a - b) < 1e-9) return null;
+  return (dir > 0 ? a > b : a < b) ? "a" : "b";
+}
+function vsDiffSub(a, b, symA, symB, unit) {
+  if (a == null || b == null) return "";
+  const d = a - b;
+  if (Math.abs(d) < 0.005) return "ngang nhau";
+  return `<b>${d > 0 ? symA : symB}</b> hơn ${nf2.format(Math.abs(d))} ${unit}`;
+}
+function vsKpi(title, symA, symB, a, b, w, sub) {
+  const row = (sym, x, k) => `<div class="vrow ${w === k ? "win" : ""}"><span class="vdot ${k}"></span>`
+    + `<span class="nm">${sym}</span><span class="vv ${x.cls || ""} ${x.small ? "small" : ""}">${x.v}</span></div>`;
+  return `<div class="kpi vsk"><div class="k">${title}</div>${row(symA, a, "a")}${row(symB, b, "b")}`
+    + (sub ? `<div class="s">${sub}</div>` : "") + `</div>`;
+}
+// Một dòng bảng so sánh. a/b: {v: chuỗi hiển thị, n: số để so, cls}
+function vsRow(label, a, b, dir, tip) {
+  const w = vsPick(a.n, b.n, dir);
+  return `<tr${tip ? ` title="${escAttr(tip)}"` : ""}><td>${label}</td>`
+    + `<td class="v ${a.cls || ""} ${w === "a" ? "win" : ""}" title="${escAttr(a.t || String(a.v).replace(/<[^>]*>/g, ""))}">${a.v}</td>`
+    + `<td class="v ${b.cls || ""} ${w === "b" ? "win" : ""}" title="${escAttr(b.t || String(b.v).replace(/<[^>]*>/g, ""))}">${b.v}</td></tr>`;
+}
+function vsGroup(title, symA, symB, rows, note) {
+  return `<div class="sg"><h4>${title}</h4><div class="tblwrap"><table class="vstbl">`
+    + `<thead><tr><th></th><th class="a"><span class="vdot a"></span>${symA}</th><th class="b"><span class="vdot b"></span>${symB}</th></tr></thead>`
+    + `<tbody>${rows.join("")}</tbody></table></div>${note ? `<div class="vsnote">${note}</div>` : ""}</div>`;
+}
+
+function renderVs(p, symA, symB) {
+  const fA = state.fundData[symA], fB = state.fundData[symB];
+  const rA = fA.rows, rB = fB.rows;
+  const win = vsWindow(p, rA, rB);
+  // EMA và đường vàng không có chỗ trên thang % so sánh
+  state.series.ema.setData([]); state.series.emaW.setData([]); state.series.gold.setData([]);
+  state.series.nav.applyOptions({ title: symA });
+  state.series.vs.applyOptions({ title: symB });
+
+  const usesEma = p.buyMode === "belowOnly" || p.enableMult;
+  let warns = "";
+  for (const [s, r] of [[symA, rA], [symB, rB]]) {
+    if (usesEma && !emaDayEnough(r)) warns += `<div class="cl-warn">* ${s}: EMA200 ngày mô phỏng (${gridDayCount(r)}/200 ngày lịch)</div>`;
+    else if (usesEma && p.enableMult && !emaWeekEnough(r)) warns += `<div class="cl-warn">* ${s}: EMA200 tuần mô phỏng (${weekCount(r)}/200 tuần)</div>`;
+  }
+  const head = `<div class="cl-sym cl-vs"><span class="a">${symA}</span> <span class="muted" style="font-size:12px">vs</span> <span class="b">${symB}</span></div>`;
+
+  if (!(win.s <= win.e)) {
+    el("chartLabel").innerHTML = head + `<div class="cl-warn">Hai tài sản không có khoảng dữ liệu chung trong khung backtest đã chọn.</div>`;
+    state.series.nav.setData(rA.map(r => ({ time: toChartTime(r[0]), value: (r[1] / rA[0][1] - 1) * 100 })));
+    state.vsData = rB.map(r => ({ time: toChartTime(r[0]), value: (r[1] / rB[0][1] - 1) * 100 }));
+    state.series.vs.setData(state.vsData);
+    state.series.bkeven.setData([]); state.series.vsBk.setData([]);
+    state.overlay.buys = []; state.overlayVs.buys = []; state.overlay.refresh(); state.overlayVs.refresh();
+    el("resultKpis").innerHTML = ""; el("resultGroups").innerHTML = "";
+    return;
+  }
+
+  const pA = vsParamsFor(p, symA, win, false), pB = vsParamsFor(p, symB, win, true);
+  const A = runBacktest(rA, pA), B = runBacktest(rB, pB);
+  const isWay1 = p.buyMode !== "belowOnly" && !p.enableMult;
+  const Ar = isWay1 ? A : runBacktest(rA, { ...pA, buyMode: "always", enableMult: false });
+  const Br = isWay1 ? B : runBacktest(rB, { ...pB, buyMode: "always", enableMult: false });
+  const sameCcy = assetCcy(symA) === assetCcy(symB);
+
+  // ----- Chart: thang % so với phiên bắt đầu khung chung -----
+  const baseA = firstAtOrAfter(rA, win.s), baseB = firstAtOrAfter(rB, win.s);
+  const pa = v => (v / baseA - 1) * 100, pb = v => (v / baseB - 1) * 100;
+  state.series.nav.setData(rA.map(r => ({ time: toChartTime(r[0]), value: pa(r[1]) })));
+  state.series.bkeven.setData(A.breakevenLine.map(x => ({ time: toChartTime(x.time), value: pa(x.value) })));
+  state.vsData = rB.map(r => ({ time: toChartTime(r[0]), value: pb(r[1]) }));
+  state.series.vs.setData(state.vsData);
+  state.series.vsBk.setData(B.breakevenLine.map(x => ({ time: toChartTime(x.time), value: pb(x.value) })));
+  const atrA = atrProxySeries(rA.map(r => r[1]), 14), atrB = atrProxySeries(rB.map(r => r[1]), 14);
+  state.overlay.buys = A.buys.map(b => ({ time: toChartTime(b.time), price: pa(b.price), mult: b.mult,
+    off: atrA[b.idx] * 0.8 / baseA * 100 }));
+  state.overlayVs.buys = B.buys.map(b => ({ time: toChartTime(b.time), price: pb(b.price), mult: b.mult,
+    off: atrB[b.idx] * 0.8 / baseB * 100 }));
+  // Khi so sánh KHÔNG vẽ nhãn mua: hai chuỗi nhãn chồng nhau che hết đường giá.
+  // Chiến thuật đang chạy ghi bằng chữ ở góc chart thay cho nhãn.
+  state.overlay.labelMode = "none"; state.overlayVs.labelMode = "none";
+  state.overlay.lines.start = nearestRowTime(rA, win.s);
+  state.overlay.lines.end = nearestRowTime(rA, win.e);
+  state.overlay.refresh(); state.overlayVs.refresh();
+  applyPriceScale();
+
+  el("chartLabel").innerHTML = head
+    + `<div class="cl-name">% thay đổi giá so với phiên bắt đầu · khung chung ${fmtDate(win.s)} → ${fmtDate(win.e)}</div>`
+    + `<div class="cl-strat">${strategyLabel(p)}</div>`
+    + (win.clipped ? `<div class="cl-warn">${win.late === "a" ? symA : symB} có dữ liệu từ ${fmtDate(win.s)} — cả hai cùng bắt đầu từ ngày này</div>` : "")
+    + warns;
+  el("legendVs").innerHTML =
+    `<span style="color:var(--text)">— <b>${symA}</b></span>`
+    + `<span class="blue">— <b>Giá vốn TB ${symA}</b></span>`
+    + `<span style="color:var(--cB)">— <b>${symB}</b></span>`
+    + `<span style="color:var(--cB)">- - <b>Giá vốn TB ${symB}</b></span>`
+    + `<span class="muted">EMA200 ngày/tuần & vàng ẩn khi so sánh · bấm ✕ ở ô so sánh để thoát</span>`;
+
+  // ----- KPI so sánh -----
+  const M = (v, s) => fmtMoney(v, s);
+  const pnlA = A.finalAssetValue - A.totalInvested, pnlB = B.finalAssetValue - B.totalInvested;
+  const pc = v => v == null ? "" : (v >= 0 ? "pos" : "neg");
+  const irrV = bt => bt.irrPct !== null ? signFmt(bt.irrPct, "%")
+    : (bt.finalYears > 0.01 && bt.finalYears < 1 ? "— (<1 năm)" : "—");
+  const dA = dcaStatusOf(A, pA), dB = dcaStatusOf(B, pB);
+  el("resultKpis").innerHTML =
+    vsKpi("Tổng tài sản", symA, symB,
+      { v: fmtCompact(A.finalAssetValue, symA) }, { v: fmtCompact(B.finalAssetValue, symB) }, null,
+      `Vốn: ${fmtCompact(A.totalInvested, symA)} · ${fmtCompact(B.totalInvested, symB)}`) +
+    vsKpi("% Lãi / Vốn", symA, symB,
+      { v: signFmt(A.finalProfitPct, "%"), cls: pc(A.finalProfitPct) },
+      { v: signFmt(B.finalProfitPct, "%"), cls: pc(B.finalProfitPct) },
+      vsPick(A.finalProfitPct, B.finalProfitPct, 1),
+      vsDiffSub(A.finalProfitPct, B.finalProfitPct, symA, symB, "điểm %")) +
+    vsKpi("CAGR thực (IRR)", symA, symB,
+      { v: A.irrPct !== null ? irrV(A) + "/năm" : irrV(A), cls: pc(A.irrPct) }, { v: B.irrPct !== null ? irrV(B) + "/năm" : irrV(B), cls: pc(B.irrPct) },
+      vsPick(A.irrPct, B.irrPct, 1),
+      (A.irrPct !== null && B.irrPct !== null) ? vsDiffSub(A.irrPct, B.irrPct, symA, symB, "điểm %/năm") : "money-weighted, số quá khứ") +
+    vsKpi("Kỳ DCA tiếp theo", symA, symB,
+      { v: dA.v, cls: dA.cls, small: true }, { v: dB.v, cls: dB.cls, small: true }, null,
+      `chu kỳ ${p.dcaDays} phiên` + (dA.sub || dB.sub ? " · " + [dA.sub && symA + " " + dA.sub, dB.sub && symB + " " + dB.sub].filter(Boolean).join(" · ") : ""));
+
+  // ----- Các bảng so sánh -----
+  const nA = x => ({ v: x == null ? "—" : nf2.format(x), n: x });
+  // trong bảng 3 cột dùng số rút gọn (386,4 tr) — số đầy đủ hiện khi rê chuột
+  const money = (v, s) => ({ v: v == null ? "—" : fmtCompact(v, s), n: v, t: v == null ? "" : M(v, s) });
+  const pct = (v, suf) => ({ v: v == null ? "—" : signFmt(v, suf || "%"), n: v, cls: pc(v) });
+  const mDir = d => sameCcy ? d : 0;         // khác tiền tệ thì không phân thắng thua theo số tiền
+  const ccyNote = sameCcy ? "" : `<b>Khác đơn vị tiền tệ</b> (${assetCcy(symA)} vs ${assetCcy(symB)}): ${symB} mua ${fmtMoney(pB.buyAmount, symB)}/lệnh 1x theo ô tiền ${assetCcy(symB)} đã lưu — so các con số %, đừng so số tiền.`;
+  const lastBuy = bt => bt.buys.length ? bt.buys[bt.buys.length - 1] : null;
+  const lbTxt = bt => { const b = lastBuy(bt); return b ? fmtDate(b.time) : "—"; };
+  const wkPct = bt => bt.nWeeks ? bt.weeksWithBuy / bt.nWeeks * 100 : null;
+  const avgM = bt => bt.totalBuys ? bt.sumBuyMult / bt.totalBuys : null;
+
+  let html = "";
+  html += vsGroup("Hiệu quả &amp; rủi ro", symA, symB, [
+    vsRow("Lãi ròng", { v: (pnlA >= 0 ? "+" : "") + fmtCompact(pnlA, symA), t: M(pnlA, symA), n: pnlA, cls: pc(pnlA) },
+      { v: (pnlB >= 0 ? "+" : "") + fmtCompact(pnlB, symB), t: M(pnlB, symB), n: pnlB, cls: pc(pnlB) }, mDir(1)),
+    vsRow("% Lãi / Vốn", pct(A.finalProfitPct), pct(B.finalProfitPct), 1),
+    vsRow("Đáy P&amp;L / Vốn", pct(A.minPnlPct), pct(B.minPnlPct), 1,
+      "Mức âm vốn sâu nhất từng chịu — đủ gan giữ qua mức này không?"),
+    vsRow("CAGR thực (IRR) /năm", { v: irrV(A), n: A.irrPct, cls: pc(A.irrPct) }, { v: irrV(B), n: B.irrPct, cls: pc(B.irrPct) }, 1),
+    vsRow("Thời gian", { v: nf2.format(A.finalYears) + " năm" }, { v: nf2.format(B.finalYears) + " năm" }, 0),
+  ], ccyNote);
+  html += vsGroup("Vốn &amp; nắm giữ", symA, symB, [
+    vsRow("Tổng vốn đã vào", money(A.totalInvested, symA), money(B.totalInvested, symB), 0),
+    ...((A.lumpInvested > 0 || B.lumpInvested > 0) ? [vsRow("Trong đó lumpsum",
+      { v: A.lumpInvested > 0 ? fmtCompact(A.lumpInvested, symA) : "—", t: A.lumpInvested > 0 ? M(A.lumpInvested, symA) + " @ " + M(A.lumpPxUsed, symA) : "" },
+      { v: B.lumpInvested > 0 ? fmtCompact(B.lumpInvested, symB) : "—", t: B.lumpInvested > 0 ? M(B.lumpInvested, symB) + " @ " + M(B.lumpPxUsed, symB) : "" }, 0)] : []),
+    vsRow("Lượng nắm giữ", { v: nf2.format(A.totalUnits) + " " + unitWord(symA) }, { v: nf2.format(B.totalUnits) + " " + unitWord(symB) }, 0),
+    vsRow("Giá vốn TB", { v: M(A.breakeven, symA) }, { v: M(B.breakeven, symB) }, 0),
+    vsRow("Giá cuối khung", { v: M(A.finalPrice, symA) }, { v: M(B.finalPrice, symB) }, 0),
+    vsRow("Tăng giá cả khung", pct((A.finalPrice / baseA - 1) * 100), pct((B.finalPrice / baseB - 1) * 100), 1,
+      "Mua 1 lần ở phiên đầu khung rồi giữ — để đối chiếu với % lãi của DCA"),
+  ], (pA.lumpMode === "atPrice" && pA.lumpPrice > 0 && pA.lumpsum > 0)
+      ? `Lumpsum của ${symB} vào tại giá phiên đầu khung (giá vốn tự nhập chỉ áp cho ${symA}).` : "");
+  html += vsGroup("Nhịp &amp; cường độ mua", symA, symB, [
+    vsRow("Số lệnh mua", { v: A.totalBuys }, { v: B.totalBuys }, 0),
+    vsRow("Tuần có lệnh mua", { v: nf2.format(wkPct(A) || 0) + "%", n: wkPct(A) }, { v: nf2.format(wkPct(B) || 0) + "%", n: wkPct(B) }, 0,
+      "Bao nhiêu phần trăm số tuần thực sự có lệnh. Bật lọc EMA thì con số này tụt hẳn."),
+    vsRow("Hệ số TB · đỉnh", { v: nf2.format(avgM(A) || 0) + "x · " + nf2.format(A.maxBuyMult) + "x" },
+      { v: nf2.format(avgM(B) || 0) + "x · " + nf2.format(B.maxBuyMult) + "x" }, 0),
+    vsRow("Tổng hệ số cộng dồn", { v: nf2.format(A.sumBuyMult) + "x" }, { v: nf2.format(B.sumBuyMult) + "x" }, 0),
+    vsRow("Lệnh gần nhất", { v: lbTxt(A), t: lastBuy(A) ? "hệ số x" + Math.round(lastBuy(A).mult * 10) / 10 : "" },
+      { v: lbTxt(B), t: lastBuy(B) ? "hệ số x" + Math.round(lastBuy(B).mult * 10) / 10 : "" }, 0),
+  ]);
+  if (A.cashflow && B.cashflow) {
+    const cA = A.cashflow, cB = B.cashflow;
+    const buf = (c, s) => ({ v: c.bufferWeeks == null ? "—" : Math.round(c.bufferWeeks) + " tuần", n: c.bufferWeeks,
+      t: c.bufferWeeks == null ? "" : Math.round(c.bufferWeeks) + " tuần · " + fmtMoney(c.bufferMoney, s),
+      cls: c.bufferWeeks == null ? "" : (c.bufferWeeks >= 52 ? "neg" : c.bufferWeeks >= 13 ? "orangec" : "pos") });
+    html += vsGroup("Tiền phải chuẩn bị", symA, symB, [
+      vsRow("Vốn TB mỗi tuần", money(cA.avgWeekAll, symA), money(cB.avgWeekAll, symB), 0),
+      vsRow("Vốn TB tuần có mua", money(cA.avgWeekBuy, symA), money(cB.avgWeekBuy, symB), 0),
+      vsRow("Đỉnh 1 tuần", money(cA.peakWeek, symA), money(cB.peakWeek, symB), mDir(-1)),
+      vsRow("Đỉnh 1 quý", money(cA.peakQuarter, symA), money(cB.peakQuarter, symB), mDir(-1)),
+      vsRow("Đệm cần có", buf(cA, symA), buf(cB, symB), -1,
+        "Tiền phải có sẵn từ ngày đầu để không bỏ lỡ lệnh nào (tính bằng số tuần)"),
+    ]);
+  }
+  if (!isWay1) {
+    const ref = (bt, r) => {
+      const sc = bt.totalInvested > 0 ? r.totalInvested / bt.totalInvested : 1;
+      return {
+        cap: r.totalInvested > 0 ? bt.totalInvested / r.totalInvested * 100 : null,
+        cheap: (bt.breakeven > 0 && r.breakeven > 0) ? (1 - bt.breakeven / r.breakeven) * 100 : null,
+        scaled: r.finalAssetValue > 0 ? (bt.finalAssetValue * sc / r.finalAssetValue - 1) * 100 : null,
+      };
+    };
+    const xA = ref(A, Ar), xB = ref(B, Br);
+    html += vsGroup("So với mua đều (Cách 1)", symA, symB, [
+      vsRow("Vốn so với Cách 1", { v: xA.cap == null ? "—" : nf2.format(xA.cap) + "%", n: xA.cap },
+        { v: xB.cap == null ? "—" : nf2.format(xB.cap) + "%", n: xB.cap }, 1,
+        "Cấu hình này đưa được bao nhiêu phần trăm số vốn so với chỉ mua đều đặn trên CHÍNH tài sản đó"),
+      vsRow("Giá vốn rẻ hơn Cách 1", pct(xA.cheap), pct(xB.cheap), 1),
+      vsRow("Nếu cùng quy mô vốn", pct(xA.scaled), pct(xB.scaled), 1,
+        "Phóng mọi lệnh lên để tiêu đúng số vốn Cách 1 đã tiêu, rồi so tài sản cuối kỳ với Cách 1"),
+    ], "Mỗi tài sản so với Cách 1 của chính nó — cho biết chiến thuật hợp với tài sản nào hơn.");
+  }
+  if (p.targetValue > 0) {
+    const isVal = p.targetMode !== "qty";
+    const tgt = p.targetValue * (isVal ? (p.targetUnit === "ty" ? 1e9 : 1e6) : 1);
+    const prog = bt => Math.min((isVal ? bt.finalAssetValue : bt.totalUnits) / tgt * 100, 999.9);
+    html += vsGroup("Mục tiêu tích lũy", symA, symB, [
+      vsRow("Mục tiêu", { v: isVal ? nfVND.format(tgt) + " đ" : nf2.format(tgt) + " " + unitWord(symA) },
+        { v: isVal ? nfVND.format(tgt) + " đ" : nf2.format(tgt) + " " + unitWord(symB) }, 0),
+      vsRow("Tiến độ", { v: nf2.format(prog(A)) + "%", n: prog(A), cls: prog(A) >= 100 ? "pos" : "orangec" },
+        { v: nf2.format(prog(B)) + "%", n: prog(B), cls: prog(B) >= 100 ? "pos" : "orangec" }, (isVal && sameCcy) ? 1 : 0),
+    ], isVal ? (sameCcy ? "" : "Mục tiêu tính bằng VNĐ — không áp được cho tài sản định giá USD.")
+      : "Mục tiêu theo SỐ LƯỢNG: mỗi tài sản tính theo đơn vị của nó, không so được với nhau.");
+  }
+  html += vsGrowthTable(symA, symB);
+  html += vsMetricsGroup(symA, symB);
+  el("resultGroups").innerHTML = html;
+}
+
+// Tăng trưởng giá theo khung (mua & giữ) — hai tài sản + VN-Index, cùng ngày cuối
+function vsGrowthTable(symA, symB) {
+  const rA = state.fundData[symA].rows, rB = state.fundData[symB].rows;
+  const bm = state.benchmark && state.benchmark.rows && state.benchmark.rows.length > 1 ? state.benchmark.rows : null;
+  const endMs = Math.min(rA[rA.length - 1][0], rB[rB.length - 1][0]);
+  const na = `<span class="muted">—</span>`;
+  const cpct = v => (v >= 0 ? "+" : "") + (Math.abs(v) >= 1000 ? nfVND.format(Math.round(v)) : nf2.format(v)) + "%";
+  const cell = (v, w) => `<td class="v ${v == null ? "" : (v >= 0 ? "pos" : "neg")} ${w ? "win" : ""}">${v == null ? na : cpct(v)}</td>`;
+  const rows = ["YTD", "1Y", "3Y", "5Y", "10Y"].map(k => {
+    const s = frameStartMs(endMs, k);
+    const ga = growthPct(rA, s, endMs), gb = growthPct(rB, s, endMs), gi = bm ? growthPct(bm, s, endMs) : null;
+    const w = vsPick(ga, gb, 1);
+    return `<tr><td>${k}</td>${cell(ga, w === "a")}${cell(gb, w === "b")}${cell(gi, false)}</tr>`;
+  }).join("");
+  const usd = assetCcy(symA) === "USD" || assetCcy(symB) === "USD";
+  return `<div class="sg"><h4>Tăng trưởng giá theo khung (mua &amp; giữ)</h4><div class="tblwrap"><table class="vstbl w4">`
+    + `<thead><tr><th>Khung</th><th class="a"><span class="vdot a"></span>${symA}</th><th class="b"><span class="vdot b"></span>${symB}</th><th>VN-Index</th></tr></thead>`
+    + `<tbody>${rows}</tbody></table></div>`
+    + `<div class="vsnote">Tính đến ${fmtDate(endMs)} (ngày cuối chung).${usd ? " Tài sản USD tính theo USD, chưa quy đổi tỷ giá." : ""}</div></div>`;
+}
+// Chỉ số rủi ro của bản thân tài sản (không phụ thuộc tham số DCA)
+function vsMetricsGroup(symA, symB) {
+  const all = metricsList();
+  const scored = all.filter(d => d.score !== null).slice().sort((x, y) => y.score - x.score);
+  const get = s => all.find(d => d.sym === s) || {};
+  const a = get(symA), b = get(symB);
+  const rankV = d => {
+    if (d.noScore) return { v: "— (tham chiếu)" };
+    if (d.tooYoung || d.score == null) return { v: "— (<1 năm)" };
+    const i = scored.findIndex(x => x.sym === d.sym);
+    return { v: `#${i + 1}/${scored.length} · ${d.score.toFixed(0)}đ`, n: -i };
+  };
+  const num = (v, suf, cls) => ({ v: v == null ? "—" : nf2.format(v) + (suf || ""), n: v, cls: cls || "" });
+  const sg = v => ({ v: v == null ? "—" : signFmt(v, "%"), n: v, cls: v == null ? "" : (v >= 0 ? "pos" : "neg") });
+  return vsGroup("Chỉ số tài sản", symA, symB, [
+    vsRow("Xếp hạng tổng hợp", rankV(a), rankV(b), 1, "Theo điểm tổng hợp ở tab So sánh & xếp hạng"),
+    vsRow("Bình quân/năm", sg(a.cagrTL), sg(b.cagrTL), 1, "Mua 1 lần rồi giữ, lãi kép mỗi năm"),
+    vsRow("Biến động (3 năm)", num(a.vol, "%"), num(b.vol, "%"), -1),
+    vsRow("Sụt tối đa (5 năm)", num(a.mdd, "%", "neg"), num(b.mdd, "%", "neg"), 1),
+    vsRow("Sharpe", num(a.sharpe), num(b.sharpe), 1),
+    vsRow("Beta vs VN-Index", num(a.beta), num(b.beta), 0),
+    vsRow("Alpha (α) /năm", sg(a.alpha), sg(b.alpha), 1),
+    vsRow("Phí bán", { v: a.sellText || "—" }, { v: b.sellText || "—" }, 0),
+  ], "Biến động/Sharpe/β/α tính trên 3 năm gần nhất của từng tài sản.");
 }
 
 // So sánh với VNINDEX: chạy CÙNG chiến lược DCA, cùng tham số, trên VNINDEX
@@ -2662,6 +3107,11 @@ function setActive(sym) {
   const prev = state.active;
   const cur = prev ? getParams() : { ...DEFAULTS, ...readLastParams() };
   if (prev) saveSymParams(prev, cur);
+  // chọn đúng mã đang đem ra so sánh làm mã chính → đổi chỗ hai mã cho nhau
+  if (state.vs && state.vs === sym) {
+    state.vs = prev && prev !== sym ? prev : null;
+    try { if (state.vs) localStorage.setItem(VS_KEY, state.vs); else localStorage.removeItem(VS_KEY); } catch (e) { }
+  }
   state.active = sym;
   setParams(paramsForSym(sym, cur));   // gọi updateBuyUI() bên trong
   const inp = el("fundSearch");
@@ -2670,6 +3120,7 @@ function setActive(sym) {
   const lv = el("legendVal");
   if (lv) lv.textContent = valLabel(sym);
   if (state.series && state.series.nav) state.series.nav.applyOptions({ title: valLabel(sym) });
+  syncVsBox();
   render();
   applyRange(state.rangeMonths !== undefined ? state.rangeMonths : 24);
 }
@@ -2786,10 +3237,12 @@ function emaDayEnough(rows) { return gridDayCount(rows) >= 200; }  // EMA200 ng�
 function emaWeekEnough(rows) { return weekCount(rows) >= 200; }    // EMA200 tuần
 
 // ---------- Ô tìm kiếm/đổi quỹ (kiểu TradingView) ----------
-function buildFundList(query) {
+// Dùng chung cho 2 ô: đổi mã đang xem và chọn mã so sánh. exclude = mã không cho chọn.
+function buildFundList(query, exclude) {
   const q = normStr(query).trim();
   const groups = {};
   for (const f of state.funds) {
+    if (exclude && f.symbol === exclude) continue;
     const hay = normStr(f.symbol + " " + (f.name || "") + " " + (f.owner || ""));
     if (q && !hay.includes(q)) continue;
     const key = f.owner || "Khác";
@@ -2797,49 +3250,56 @@ function buildFundList(query) {
   }
   const owners = Object.keys(groups).sort((a, b) =>
     groups[b].length - groups[a].length || a.localeCompare(b));
-  state._listSyms = [];
-  if (!owners.length) return `<div class="empty">Không thấy quỹ khớp "${query}"</div>`;
+  const syms = [];
+  if (!owners.length) return { html: `<div class="empty">Không thấy mã khớp "${escAttr(query)}"</div>`, syms };
   let html = "";
   for (const o of owners) {
     html += `<div class="grphead">${shortOwner(o)} (${groups[o].length})</div>`;
     for (const f of groups[o].sort((a, b) => a.symbol.localeCompare(b.symbol))) {
-      const idx = state._listSyms.length;
-      html += `<div class="item" data-sym="${f.symbol}" data-idx="${idx}">`
+      html += `<div class="item" data-sym="${f.symbol}" data-idx="${syms.length}">`
         + `<span class="sym">${f.symbol}</span><span class="nm">${f.name || ""}</span></div>`;
-      state._listSyms.push(f.symbol);
+      syms.push(f.symbol);
     }
   }
-  return html;
+  return { html, syms };
 }
-function initFundPicker() {
-  const inp = el("fundSearch"), list = el("fundList");
-  state._hl = -1;
+function makePicker(inp, list, cfg) {
+  const st = { hl: -1, syms: [] };
   const applyHl = () => {
     const items = list.querySelectorAll(".item");
-    items.forEach((it, k) => it.classList.toggle("hl", k === state._hl));
-    if (items[state._hl]) items[state._hl].scrollIntoView({ block: "nearest" });
+    items.forEach((it, k) => it.classList.toggle("hl", k === st.hl));
+    if (items[st.hl]) items[st.hl].scrollIntoView({ block: "nearest" });
   };
   const rerender = (resetHl) => {
-    list.innerHTML = buildFundList(inp.value);
-    state._hl = resetHl ? (state._listSyms.length ? 0 : -1)
-      : Math.max(0, state._listSyms.indexOf(state.active));
+    const r = buildFundList(inp.value, cfg.exclude());
+    list.innerHTML = r.html; st.syms = r.syms;
+    st.hl = resetHl ? (st.syms.length ? 0 : -1) : Math.max(0, st.syms.indexOf(cfg.current()));
     applyHl();
   };
-  const pick = sym => { setActive(sym); inp.blur(); list.classList.remove("open"); };
+  const pick = sym => { inp.blur(); list.classList.remove("open"); cfg.onPick(sym); };
   inp.addEventListener("focus", () => { inp.value = ""; rerender(false); list.classList.add("open"); });
   inp.addEventListener("input", () => { rerender(true); list.classList.add("open"); });
   inp.addEventListener("blur", () => setTimeout(() => list.classList.remove("open"), 150));
   inp.addEventListener("keydown", e => {
-    const n = state._listSyms.length;
-    if (e.key === "ArrowDown") { e.preventDefault(); state._hl = Math.min(n - 1, state._hl + 1); applyHl(); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); state._hl = Math.max(0, state._hl - 1); applyHl(); }
-    else if (e.key === "Enter") { e.preventDefault(); if (state._hl >= 0) pick(state._listSyms[state._hl]); }
+    const n = st.syms.length;
+    if (e.key === "ArrowDown") { e.preventDefault(); st.hl = Math.min(n - 1, st.hl + 1); applyHl(); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); st.hl = Math.max(0, st.hl - 1); applyHl(); }
+    else if (e.key === "Enter") { e.preventDefault(); if (st.hl >= 0) pick(st.syms[st.hl]); }
     else if (e.key === "Escape") { inp.blur(); }
   });
   list.addEventListener("mousedown", e => {
     const it = e.target.closest(".item");
     if (it) { e.preventDefault(); pick(it.dataset.sym); }
   });
+}
+function initFundPicker() {
+  makePicker(el("fundSearch"), el("fundList"), {
+    current: () => state.active, exclude: () => null, onPick: sym => setActive(sym) });
+  makePicker(el("vsSearch"), el("vsList"), {
+    current: () => state.vs, exclude: () => state.active,
+    onPick: sym => setVs(sym) });
+  el("vsSearch").addEventListener("blur", () => setTimeout(syncVsBox, 160));
+  el("vsClear").addEventListener("click", () => setVs(null));
 }
 
 // Trạng thái cập nhật giá — tách theo loại tài sản (cadence khác nhau)
@@ -2888,6 +3348,8 @@ async function loadAll() {
   initCompareSort();
   initExplain();
   initTooltips();
+  // mã so sánh lần trước (nếu vẫn còn trong danh sách)
+  try { const v = localStorage.getItem(VS_KEY); state.vs = idx.funds.some(f => f.symbol === v) ? v : null; } catch (e) { state.vs = null; }
   document.querySelectorAll(".stab").forEach(b =>
     b.addEventListener("click", () => switchSection(b.dataset.sec)));
   setActive(idx.funds[0].symbol);
