@@ -157,7 +157,7 @@
   .fundlist .empty { padding: 12px; color: var(--muted); font-size: 13px; }
   /* nhãn quỹ + disclaimer trên chart */
   .chartwrap { position: relative; }
-  .chartlabel { position: absolute; top: 8px; left: 12px; z-index: 5; pointer-events: none; }
+  .chartlabel { position: absolute; top: 20px; left: 12px; z-index: 5; pointer-events: none; }
   .chartlabel .cl-sym { font-size: 16px; font-weight: 700; color: var(--text); }
   .chartlabel .cl-name { font-size: 11px; color: var(--muted); max-width: 380px; margin-top: 1px; }
   .chartlabel .cl-warn { font-size: 10px; color: var(--orange); margin-top: 2px; }
@@ -331,6 +331,77 @@
   table.vstbl.w4 td:first-child, table.vstbl.w4 th:first-child { width: 18%; }
   .vsnote { font-size: 11.5px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
   .vsnote b { color: var(--orange); font-weight: 600; }
+  .sg.vsverdict { grid-column: 1 / -1; padding: 14px 18px; }
+  /* Gọn: nội dung không kéo giãn theo màn hình rộng — mắt khỏi phải chạy ngang 2000px */
+  .vsverdict .vwrap { max-width: 900px; }
+  .vsverdict .vcol { min-width: 0; }
+  @media (min-width: 1400px) {
+    .vsverdict .vwrap { max-width: 1760px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 44px; }
+    .vsverdict .vright { border-left: 1px solid var(--border); padding-left: 28px; }
+    .vsverdict .vsec.first { margin-top: 0; border-top: none; padding-top: 4px; }
+  }
+  .vsverdict h4 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+  .vsverdict .vtitle { text-transform: none; letter-spacing: 0; font-size: 13px; font-weight: 400; }
+  .vsverdict .vtitle b { font-size: 13.5px; }
+  .vsverdict table.vstbl { font-size: 12.5px; }
+  .vsverdict table.vstbl td, .vsverdict table.vstbl th { padding: 5px 8px; }
+  .vsverdict table.vstbl td:first-child, .vsverdict table.vstbl th:first-child { width: auto; }
+  .vsverdict table.vstbl td.v, .vsverdict table.vstbl th.a, .vsverdict table.vstbl th.b { width: 92px; }
+  .vsverdict .wbar { height: 22px; }
+  .vsverdict table.vstbl.ep td.v, .vsverdict table.vstbl.ep th.a, .vsverdict table.vstbl.ep th.b { width: 128px; white-space: nowrap; }
+  .vsverdict .hrow .hv { flex-basis: 64px; }
+  .vsverdict .hrow .hn { flex-basis: 70px; }
+  .vsverdict .vhead { font-size: 19px; font-weight: 700; margin: 8px 0 4px; }
+  .vsverdict .na { color: var(--text); } .vsverdict .nb { color: var(--cB); }
+  .vsverdict .vsub { font-size: 14px; color: var(--text); line-height: 1.6; }
+  .vconf { display: inline-block; margin-top: 8px; font-size: 12px; padding: 2px 10px; border-radius: 999px;
+    border: 1px solid currentColor; }
+  .vconf span { color: var(--muted); }
+  .vconf.c-hi { color: var(--green); } .vconf.c-mid { color: var(--orange); } .vconf.c-lo { color: var(--red); }
+  .vblock { margin-top: 14px; }
+  .vq { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 7px; }
+  .wbar { display: flex; height: 26px; border-radius: 7px; overflow: hidden; gap: 2px; }
+  .wseg { display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; min-width: 4px; }
+  .wseg.wa, .wleg i.wa, .htrack i.wa { background: var(--text); color: var(--bg); }
+  .wseg.wb, .wleg i.wb, .htrack i.wb { background: var(--cB); color: #fff; }
+  .wseg.wt, .wleg i.wt { background: var(--border); color: var(--text); }
+  .wleg { display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+  .wleg span { display: inline-flex; align-items: center; gap: 6px; } .wleg b { color: var(--text); }
+  .wleg i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+  .vgrid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 6px 32px; }
+  .hrow { display: flex; align-items: center; gap: 10px; margin: 6px 0; font-size: 13px; }
+  .hrow .hn { flex: 0 0 82px; color: var(--muted); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .hrow .htrack { flex: 1; height: 12px; background: var(--panel2); border-radius: 6px; overflow: hidden; }
+  .hrow .htrack i { display: block; height: 100%; border-radius: 6px; }
+  .hrow .hv { flex: 0 0 76px; text-align: right; font-weight: 700; }
+  .vfoot { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  ul.vnotes { list-style: none; margin: 0; padding: 0; font-size: 13.5px; line-height: 1.6; }
+  ul.vnotes li { display: flex; gap: 10px; padding: 7px 0; border-top: 1px dashed rgba(42,53,80,.45); }
+  ul.vnotes li > span:first-child { flex: 0 0 20px; height: 20px; border-radius: 50%; display: inline-flex;
+    align-items: center; justify-content: center; font-size: 12px; font-weight: 700; margin-top: 1px; }
+  .ic-ok { background: rgba(34,197,94,.18); color: var(--green); } .ic-ok::before { content: "✓"; }
+  .ic-warn { background: rgba(245,158,11,.18); color: var(--orange); } .ic-warn::before { content: "!"; }
+  .ic-info { background: rgba(59,130,246,.18); color: var(--blue); } .ic-info::before { content: "i"; }
+  .vsec { margin: 18px 0 0; padding-top: 12px; border-top: 1px solid var(--border); font-size: 11.5px; font-weight: 700;
+    color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  .vgrid2.top { align-items: start; }
+  .stags { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; margin-bottom: 6px; }
+  .stag { display: inline-block; font-size: 11px; font-weight: 700; padding: 1px 8px; border-radius: 999px; margin: 0 4px; cursor: help; }
+  .stag.a { background: var(--text); color: var(--bg); } .stag.b { background: var(--cB); color: #fff; }
+  table.vstbl .rec { font-size: 11px; color: var(--muted); font-weight: 400; }
+  table.vstbl.ep td:first-child { width: 34%; color: var(--text); }
+  .ychips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ychip { min-width: 0; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border); font-size: 12px; cursor: help;
+    display: flex; flex-direction: column; line-height: 1.3; }
+  .ychip b { font-size: 12px; color: var(--muted); }
+  .ychip.ya { border-color: var(--text); } .ychip.ya span { color: var(--text); font-weight: 700; }
+  .ychip.yb { border-color: var(--cB); background: rgba(249,115,22,.08); } .ychip.yb span { color: var(--cB); font-weight: 700; }
+  .ychip.yt span { color: var(--muted); }
+  .ic-go { background: rgba(59,130,246,.18); color: var(--blue); } .ic-go::before { content: "→"; }
+  details.vmethod { margin-top: 10px; font-size: 12px; color: var(--muted); }
+  details.vmethod summary { cursor: pointer; }
+  details.vmethod summary:hover { color: var(--text); }
+  details.vmethod div { margin-top: 6px; line-height: 1.6; max-width: 1000px; }
   @media (max-width: 860px) {
     .layout { flex-direction: column; }
     .sidebar { width: 100%; }
@@ -699,6 +770,14 @@ function weeklyEmaLatest(rows, period = 200) {
   return prev;
 }
 
+// alignToRows (EMA trên lưới lịch) chỉ phụ thuộc chuỗi giá → cache theo mảng rows.
+// Nhận định so sánh chạy backtest hàng chục lần trên cùng một chuỗi.
+const _alignCache = new WeakMap();
+function alignCached(rows) {
+  let a = _alignCache.get(rows);
+  if (!a) { a = window.DCAEngine.alignToRows(rows, 200); _alignCache.set(rows, a); }
+  return a;
+}
 // ---------- Backtest DCA (port logic mua của Pine) ----------
 function runBacktest(rows, p) {
   const n = rows.length;
@@ -707,7 +786,7 @@ function runBacktest(rows, p) {
   // EMA và nhịp DCA tính trên LỊCH, không phải trên số điểm dữ liệu:
   // quỹ công bố NAV 48-365 lần/năm nên đếm điểm sẽ cho "EMA200" dài ngắn
   // khác nhau tới 8 lần giữa các quỹ.
-  const AL = window.DCAEngine.alignToRows(rows, 200);
+  const AL = alignCached(rows);
   const ema = AL.emaD, emaWArr = AL.emaW, gIdx = AL.gridIdx;
 
   const startMs = p.startDate ? Date.parse(p.startDate + "T00:00:00Z") : -Infinity;
@@ -1111,19 +1190,25 @@ class ChartOverlay {
       { t: this.lines.end, label: "Kết thúc", color: "#f87171" },
     ];
     ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    const W = mediaSize.width;
     for (const ld of lineDefs) {
       if (!this.drawLines || ld.t === null) continue;
-      const x = ts.timeToCoordinate(ld.t);
+      let x = ts.timeToCoordinate(ld.t);
       if (x === null) continue;
+      // Vạch trôi ra ngoài vùng đang nhìn → ghim ở mép chart (có mũi tên) để vẫn thấy & kéo được
+      let label = ld.label;
+      if (x < 0) { x = 1; label = "◀ " + label; }
+      else if (x > W) { x = W - 1; label = label + " ▶"; }
       ctx.strokeStyle = ld.color; ctx.lineWidth = 1.5; ctx.setLineDash([5, 4]);
       ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
       ctx.setLineDash([]);
       ctx.font = "10px sans-serif";
-      const tw = ctx.measureText(ld.label).width;
+      const tw = ctx.measureText(label).width;
+      const bx = Math.max(0, Math.min(W - tw - 10, x - tw / 2 - 5));   // nhãn không bị cắt ở mép
       ctx.fillStyle = ld.color;
-      roundedRect(ctx, x - tw / 2 - 5, 2, tw + 10, 15, 3); ctx.fill();
+      roundedRect(ctx, bx, 2, tw + 10, 15, 3); ctx.fill();
       ctx.fillStyle = "#0f1420";
-      ctx.fillText(ld.label, x, 9.5);
+      ctx.fillText(label, bx + tw / 2 + 5, 9.5);
     }
     // ----- Nhãn mua kiểu TradingView (label_up: mũi nhọn chỉ vào điểm mua) -----
     if (this.labelMode === "none") return;
@@ -1322,7 +1407,12 @@ function initLineDrag() {
   let dragLine = null, vPan = null;
   const lineX = name => {
     const t = state.overlay.lines[name];
-    return t === null ? null : state.chart.timeScale().timeToCoordinate(t);
+    if (t === null) return null;
+    const x = state.chart.timeScale().timeToCoordinate(t);
+    if (x === null) return null;
+    // cùng quy tắc ghim mép như lúc vẽ (vùng vẽ = chiều rộng chart trừ trục giá)
+    const W = cont.clientWidth - axisWidth();
+    return Math.max(1, Math.min(W - 1, x));
   };
   const relX = e => e.clientX - cont.getBoundingClientRect().left;
   const axisWidth = () => { try { return state.chart.priceScale("right").width() || 66; } catch (_) { return 66; } };
@@ -1851,10 +1941,12 @@ function renderVs(p, symA, symB) {
   const baseA = firstAtOrAfter(rA, win.s), baseB = firstAtOrAfter(rB, win.s);
   const pa = v => (v / baseA - 1) * 100, pb = v => (v / baseB - 1) * 100;
   state.series.nav.setData(rA.map(r => ({ time: toChartTime(r[0]), value: pa(r[1]) })));
-  state.series.bkeven.setData(A.breakevenLine.map(x => ({ time: toChartTime(x.time), value: pa(x.value) })));
+  // Không vẽ giá vốn TB khi so sánh: hai đường giá vốn trên thang % dễ đọc nhầm
+  // (giá vốn của mã nào? % so với cái gì?) — con số giá vốn đã có ở bảng bên dưới.
+  state.series.bkeven.setData([]);
   state.vsData = rB.map(r => ({ time: toChartTime(r[0]), value: pb(r[1]) }));
   state.series.vs.setData(state.vsData);
-  state.series.vsBk.setData(B.breakevenLine.map(x => ({ time: toChartTime(x.time), value: pb(x.value) })));
+  state.series.vsBk.setData([]);
   const atrA = atrProxySeries(rA.map(r => r[1]), 14), atrB = atrProxySeries(rB.map(r => r[1]), 14);
   state.overlay.buys = A.buys.map(b => ({ time: toChartTime(b.time), price: pa(b.price), mult: b.mult,
     off: atrA[b.idx] * 0.8 / baseA * 100 }));
@@ -1875,9 +1967,7 @@ function renderVs(p, symA, symB) {
     + warns;
   el("legendVs").innerHTML =
     `<span style="color:var(--text)">— <b>${symA}</b></span>`
-    + `<span class="blue">— <b>Giá vốn TB ${symA}</b></span>`
     + `<span style="color:var(--cB)">— <b>${symB}</b></span>`
-    + `<span style="color:var(--cB)">- - <b>Giá vốn TB ${symB}</b></span>`
     + `<span class="muted">EMA200 ngày/tuần & vàng ẩn khi so sánh · bấm ✕ ở ô so sánh để thoát</span>`;
 
   // ----- KPI so sánh -----
@@ -1995,7 +2085,405 @@ function renderVs(p, symA, symB) {
   }
   html += vsGrowthTable(symA, symB);
   html += vsMetricsGroup(symA, symB);
-  el("resultGroups").innerHTML = html;
+  // Nhận định đứng ĐẦU (chiếm cả hàng). Kết quả cuốn chiếu được cache theo mã + chiến thuật,
+  // kéo vạch Bắt đầu/Kết thúc không phải tính lại.
+  el("resultGroups").innerHTML = vsVerdict(p, symA, symB, A, B, isWay1) + html;
+}
+
+// ======================================================================
+// NHẬN ĐỊNH TỰ ĐỘNG (chỉ ở chế độ so sánh) — thuần code, không gọi API.
+// Nguyên tắc chống phiến diện:
+//  1. KHÔNG kết luận từ khung đang chọn. Chạy lại CÙNG chiến thuật trên nhiều
+//     khung H năm (ưu tiên 3 năm, tối thiểu 2 năm), bắt đầu cách nhau 1 quý —
+//     đếm số lần thắng + chênh trung vị. Một điểm vào/ra may mắn không lật được kết quả.
+//  2. Chênh < 1 điểm %/năm hoặc thắng < 65% số khung → "không có bên thắng rõ ràng".
+//  3. Luôn đặt lợi nhuận cạnh rủi ro (đáy P&L trong lúc DCA) — lãi hơn mà đau hơn
+//     thì nói là đánh đổi, không nói là "tốt hơn".
+//  4. Khung đang chọn chỉ dùng để đối chiếu: nó nằm ở đâu trong phân phối các khung.
+//  5. Độ tin cậy hạ bậc khi ít khung, dữ liệu ngắn, hoặc khác đơn vị tiền tệ.
+// ======================================================================
+const VS_TIE = 0.5;                 // |chênh CAGR| dưới mức này (điểm %/năm) coi như hoà
+function quantile(arr, q) {
+  if (!arr.length) return null;
+  const a = arr.slice().sort((x, y) => x - y), pos = (a.length - 1) * q;
+  const lo = Math.floor(pos), hi = Math.ceil(pos);
+  return a[lo] + (a[hi] - a[lo]) * (pos - lo);
+}
+const median = a => quantile(a, 0.5);
+const DAY_MS = 86400000, YEAR_MS = 365.25 * DAY_MS;
+
+function vsRolling(p, symA, symB, isWay1) {
+  const rA = state.fundData[symA].rows, rB = state.fundData[symB].rows;
+  const key = [symA, symB, rA[rA.length - 1][0], rB[rB.length - 1][0], p.dcaDays, p.buyMode, p.enableMult,
+    p.stepStd, p.stepBtc, p.stepPctW, p.multCap, p.escRate].join("|");
+  if (state._vsRoll && state._vsRoll.key === key) return state._vsRoll.res;
+  const usesEma = p.buyMode === "belowOnly" || p.enableMult;
+  // EMA200 cần khởi động: bỏ ~10 tháng đầu dữ liệu chung, tránh tín hiệu từ EMA mô phỏng
+  const s0 = Math.max(rA[0][0], rB[0][0]) + (usesEma ? 300 * DAY_MS : 0);
+  const e0 = Math.min(rA[rA.length - 1][0], rB[rB.length - 1][0]);
+  let H = 0, starts = [];
+  for (const h of [3, 2]) {
+    starts = [];
+    for (let t = s0; t + h * YEAR_MS <= e0; t += YEAR_MS / 4) starts.push(t);
+    H = h;
+    if (starts.length >= 8) break;
+  }
+  const res = { H, spanY: Math.max(0, (e0 - s0) / YEAR_MS), ok: false, wins: [], skipped: 0 };
+  if (starts.length >= 6) {
+    const pq = (sym, t) => {
+      const q = vsParamsFor(p, sym, { start: isoDay(t), end: isoDay(t + H * YEAR_MS) }, true);
+      q.lumpsum = 0;                         // khung cuốn chiếu: DCA thuần, không lumpsum
+      return q;
+    };
+    const scaled = (bt, ref) => (bt.totalInvested > 0 && ref.finalAssetValue > 0)
+      ? (bt.finalAssetValue * (ref.totalInvested / bt.totalInvested) / ref.finalAssetValue - 1) * 100 : null;
+    for (const t of starts) {
+      const qa = pq(symA, t), qb = pq(symB, t);
+      const a = runBacktest(rA, qa), b = runBacktest(rB, qb);
+      if (!a.totalBuys || !b.totalBuys || a.irrPct === null || b.irrPct === null) { res.skipped++; continue; }
+      const w = { t, d: a.irrPct - b.irrPct, a: a.irrPct, b: b.irrPct, ddA: a.minPnlPct, ddB: b.minPnlPct };
+      if (!isWay1) {
+        const ra = runBacktest(rA, { ...qa, buyMode: "always", enableMult: false });
+        const rb = runBacktest(rB, { ...qb, buyMode: "always", enableMult: false });
+        w.sA = scaled(a, ra); w.sB = scaled(b, rb);
+      }
+      res.wins.push(w);
+    }
+    res.ok = res.wins.length >= 6;
+  }
+  state._vsRoll = { key, res };
+  return res;
+}
+
+// tương quan lợi nhuận TUẦN trong 3 năm chung gần nhất
+function weeklyCorr(rA, rB) {
+  const wk = ms => Math.floor((ms - 4 * DAY_MS) / (7 * DAY_MS));
+  const end = Math.min(rA[rA.length - 1][0], rB[rB.length - 1][0]), from = end - 3 * YEAR_MS;
+  const toMap = rows => { const m = new Map(); for (const [t, c] of rows) if (t >= from && t <= end) m.set(wk(t), c); return m; };
+  const mA = toMap(rA), mB = toMap(rB);
+  const ks = [...mA.keys()].filter(k => mB.has(k)).sort((x, y) => x - y);
+  const xa = [], xb = [];
+  for (let i = 1; i < ks.length; i++) {
+    xa.push(Math.log(mA.get(ks[i]) / mA.get(ks[i - 1])));
+    xb.push(Math.log(mB.get(ks[i]) / mB.get(ks[i - 1])));
+  }
+  if (xa.length < 52) return null;
+  const ma = xa.reduce((s, v) => s + v, 0) / xa.length, mb = xb.reduce((s, v) => s + v, 0) / xb.length;
+  let sab = 0, saa = 0, sbb = 0;
+  for (let i = 0; i < xa.length; i++) { const u = xa[i] - ma, v = xb[i] - mb; sab += u * v; saa += u * u; sbb += v * v; }
+  return saa > 0 && sbb > 0 ? sab / Math.sqrt(saa * sbb) : null;
+}
+
+// Tên chiến thuật không kèm số thứ tự, cho câu chữ dễ đọc
+function strategyName(p) {
+  const below = p.buyMode === "belowOnly", mult = !!p.enableMult;
+  return below ? (mult ? "Rẻ & dồn đáy" : "Chỉ mua khi rẻ") : (mult ? "Đều & dồn đáy" : "Mua đều");
+}
+const pctTxt = v => (v >= 0 ? "+" : "−") + nf2.format(Math.abs(v)) + "%";
+
+// ---------- Hồ sơ "tính cách" của từng mã (mua 1 lần rồi giữ) ----------
+const mKey = t => { const d = new Date(t); return d.getUTCFullYear() * 12 + d.getUTCMonth(); };
+const mLabel = t => { const d = new Date(t); return String(d.getUTCMonth() + 1).padStart(2, "0") + "/" + d.getUTCFullYear(); };
+function monthCloses(rows) { const m = new Map(); for (const [t, c] of rows) m.set(mKey(t), c); return m; }
+// Tìm các đợt sụt mạnh của một chuỗi (đỉnh → đáy ≥ thr), kèm ngày hồi lại đỉnh cũ
+function ddEpisodes(rows, from, thr) {
+  const eps = [];
+  let pkT = null, pkV = -Infinity, mnT = null, mnV = Infinity, deep = false;
+  for (const [t, v] of rows) {
+    if (t < from) { if (v >= pkV) { pkV = v; pkT = t; } continue; }
+    if (v >= pkV) {
+      if (deep) eps.push({ peakT: pkT, troughT: mnT, depth: mnV / pkV - 1, recT: t });
+      pkV = v; pkT = t; mnV = Infinity; deep = false;
+    } else {
+      if (v < mnV) { mnV = v; mnT = t; }
+      if (mnV / pkV - 1 <= -thr) deep = true;
+    }
+  }
+  if (deep) eps.push({ peakT: pkT, troughT: mnT, depth: mnV / pkV - 1, recT: null });
+  return eps.filter(e => e.peakT !== null && e.peakT >= from);   // đợt bắt đầu khi cả hai mã đã có dữ liệu
+}
+// tháng kể từ đáy đến khi giá quay lại mức ở ngày đỉnh (null = chưa hồi)
+function recoverMonths(rows, peakT, troughT) {
+  const pv = valAtOrBefore(rows, peakT);
+  if (pv == null) return undefined;
+  for (const [t, v] of rows) if (t > troughT && v >= pv) return (t - troughT) / (YEAR_MS / 12);
+  return null;
+}
+const mo = v => v == null ? "chưa hồi lại" : v < 1 ? "dưới 1 tháng" : Math.round(v) + " tháng";
+
+function vsProfile(symA, symB) {
+  const rA = state.fundData[symA].rows, rB = state.fundData[symB].rows;
+  const key = symA + "|" + symB + "|" + rA[rA.length - 1][0] + "|" + rB[rB.length - 1][0];
+  if (state._vsProf && state._vsProf.key === key) return state._vsProf.res;
+  const bm = state.benchmark && state.benchmark.rows && state.benchmark.rows.length > 200 ? state.benchmark.rows : null;
+  const vnd = assetCcy(symA) === "VND" && assetCcy(symB) === "VND";
+  const s0 = Math.max(rA[0][0], rB[0][0]), e0 = Math.min(rA[rA.length - 1][0], rB[rB.length - 1][0]);
+  const cA = monthCloses(rA), cB = monthCloses(rB), cM = bm ? monthCloses(bm) : null;
+  const k0 = mKey(s0), k1 = mKey(e0);
+  const res = { spanY: (e0 - s0) / YEAR_MS };
+
+  // 1) Tháng thị trường lên / xuống (5 năm gần nhất, chỉ khi cùng là tài sản VNĐ)
+  if (cM && vnd) {
+    const up = { a: [], b: [] }, dn = { a: [], b: [] };
+    for (let k = Math.max(k0 + 1, k1 - 60); k <= k1; k++) {
+      if (![cA, cB, cM].every(m => m.has(k) && m.has(k - 1))) continue;
+      const rm = cM.get(k) / cM.get(k - 1) - 1, ra = cA.get(k) / cA.get(k - 1) - 1, rb = cB.get(k) / cB.get(k - 1) - 1;
+      const bucket = rm >= 0 ? up : dn;
+      bucket.a.push(ra); bucket.b.push(rb);
+      (bucket.m = bucket.m || []).push(rm);
+    }
+    const avg = a => a.reduce((s, v) => s + v, 0) / a.length * 100;
+    if (up.a.length >= 12 && dn.a.length >= 8)
+      res.cap = { upA: avg(up.a), upB: avg(up.b), upM: avg(up.m), dnA: avg(dn.a), dnB: avg(dn.b), dnM: avg(dn.m),
+        nUp: up.a.length, nDn: dn.a.length };
+  }
+  // 2) Mua 1 lần giữ 1 năm: bao nhiêu lần bị lỗ (toàn bộ dữ liệu chung, theo tháng)
+  const loss = (cX) => { let n = 0, l = 0; for (let k = k0; k + 12 <= k1; k++) if (cX.has(k) && cX.has(k + 12)) { n++; if (cX.get(k + 12) < cX.get(k)) l++; } return n >= 12 ? { n, pct: l / n * 100 } : null; };
+  res.lossA = loss(cA); res.lossB = loss(cB);
+  // 3) Các đợt thị trường giảm mạnh (theo VN-Index nếu có, không thì theo mã A)
+  const base = bm || rA;
+  let eps = ddEpisodes(base, s0, 0.2);
+  if (eps.length < 2) eps = ddEpisodes(base, s0, 0.15);
+  eps = eps.sort((x, y) => x.depth - y.depth).slice(0, 3).sort((x, y) => x.peakT - y.peakT);
+  res.baseName = bm ? "VN-Index" : symA;
+  res.eps = eps.map(e => {
+    const g = (rows) => { const p = valAtOrBefore(rows, e.peakT), t = valAtOrBefore(rows, e.troughT); return (p && t) ? (t / p - 1) * 100 : null; };
+    return { ...e, mkt: e.depth * 100, a: g(rA), b: g(rB), recA: recoverMonths(rA, e.peakT, e.troughT), recB: recoverMonths(rB, e.peakT, e.troughT) };
+  });
+  // 4) Từng năm dương lịch
+  const yrs = [], y1 = new Date(e0).getUTCFullYear();
+  for (let y = new Date(s0).getUTCFullYear(); y <= y1; y++) {
+    const st = Date.UTC(y, 0, 1) - 1, en = Math.min(Date.UTC(y + 1, 0, 1) - 1, e0);
+    const ga = growthPct(rA, st, en), gb = growthPct(rB, st, en);
+    if (ga == null || gb == null || valAtOrBefore(rA, st) == null || valAtOrBefore(rB, st) == null) continue;
+    yrs.push({ y, a: ga, b: gb, partial: y === y1 });
+  }
+  res.years = yrs;
+  state._vsProf = { key, res };
+  return res;
+}
+// nhãn tính cách dựa trên phản ứng với thị trường
+function styleTag(up, dn, upM, dnM) {
+  const u = up / upM, d = dn / dnM;          // >1 = mạnh hơn thị trường theo chiều đó
+  if (u >= 1.08 && d >= 1.08) return ["Tấn công", "lên mạnh, xuống cũng mạnh hơn thị trường"];
+  if (u <= 0.92 && d <= 0.92) return ["Phòng thủ", "lên chậm hơn, nhưng xuống cũng nhẹ hơn thị trường"];
+  if (u >= 1 && d <= 0.95) return ["Hiệu quả", "lên theo kịp, xuống nhẹ hơn thị trường"];
+  if (u <= 0.95 && d >= 1) return ["Kém hiệu quả", "lên chậm hơn mà xuống lại mạnh hơn thị trường"];
+  return ["Bám thị trường", "lên xuống gần như theo VN-Index"];
+}
+
+function vsVerdict(p, symA, symB, A, B, isWay1) {
+  const rA = state.fundData[symA].rows, rB = state.fundData[symB].rows;
+  const R = vsRolling(p, symA, symB, isWay1);
+  const P = vsProfile(symA, symB);
+  const sameCcy = assetCcy(symA) === assetCcy(symB);
+  const ageY = rows => (rows[rows.length - 1][0] - rows[0][0]) / YEAR_MS;
+  const nm = k => k === "a" ? symA : symB;
+  const tagA = `<b class="na">${symA}</b>`, tagB = `<b class="nb">${symB}</b>`;
+  const tg = k => k === "a" ? tagA : tagB;
+  const pp = v => pctTxt(v);
+  // Tiêu đề: tên 2 tài sản + khoảng dữ liệu chung
+  const cs = Math.max(rA[0][0], rB[0][0]), ce = Math.min(rA[rA.length - 1][0], rB[rB.length - 1][0]);
+  const h4 = `<h4>Nhận định tự động <span class="vtitle">${tagA} <span class="muted">vs</span> ${tagB}`
+    + ` <span class="muted">· ${nf2.format((ce - cs) / YEAR_MS)} năm dữ liệu chung (${new Date(cs).getUTCFullYear()}–${new Date(ce).getUTCFullYear()})</span></span></h4>`;
+  const methodNote = `<details class="vmethod"><summary>Cách máy tính ra nhận định này</summary><div>`
+    + `<b>Phần tích sản:</b> giả lập bắt đầu ở nhiều thời điểm (mỗi quý một lần), giữ ${R.H || 3} năm, cùng chiến thuật cho cả hai mã, chỉ mua định kỳ. "Lãi mỗi năm" tính theo dòng tiền bỏ vào dần (IRR); "thường gặp" là trường hợp ở giữa. Chênh dưới 0,5%/năm coi là ngang nhau.<br>`
+    + `<b>Phần tính cách:</b> dựa trên giá của chính mã (mua 1 lần rồi giữ). Tháng thị trường lên/xuống theo VN-Index, 5 năm gần nhất. Các đợt sập lấy từ những lần VN-Index giảm từ 20% trở lên tính từ đỉnh.<br>`
+    + `Hoàn toàn dựa trên giá quá khứ, không dự báo tương lai và không phải khuyến nghị đầu tư.</div></details>`;
+
+  if (!R.ok) {
+    return `<div class="sg vsverdict">${h4}<div class="vwrap">`
+      + `<div class="vhead">Chưa đủ dữ liệu để so sánh</div>`
+      + `<div class="vsub">Hai mã mới có chung khoảng <b>${nf2.format(R.spanY)} năm</b> dữ liệu dùng được. Cần ít nhất khoảng 4 năm thì mới thử được ở nhiều thời điểm khác nhau. `
+      + `Với khoảng thời gian ngắn như vậy, mã nào đang "thắng" trên chart có thể chỉ là do may mắn về thời điểm.</div>`
+      + `<div class="vconf c-lo">Mức chắc chắn: <b>Thấp</b></div>${methodNote}</div></div>`;
+  }
+
+  // ===== Kết quả tích sản cuốn chiếu =====
+  const W = R.wins, n = W.length, ds = W.map(w => w.d);
+  const winsA = W.filter(w => w.d >= VS_TIE).length, winsB = W.filter(w => w.d <= -VS_TIE).length, ties = n - winsA - winsB;
+  const med = median(ds);
+  const wA = winsA / n, wB = winsB / n;
+  let lean = null;
+  if (wA >= 0.65 && med >= 1) lean = "a"; else if (wB >= 0.65 && med <= -1) lean = "b";
+  const strong = lean && Math.max(wA, wB) >= 0.8 && Math.abs(med) >= 2;
+  const other = lean === "a" ? "b" : "a";
+  const y0 = new Date(W[0].t).getUTCFullYear(), y1 = new Date(W[n - 1].t).getUTCFullYear();
+  const typA = median(W.map(w => w.a)), typB = median(W.map(w => w.b));
+  const ddA = median(W.map(w => w.ddA).filter(v => v != null)), ddB = median(W.map(w => w.ddB).filter(v => v != null));
+  const worstA = Math.min(...W.map(w => w.ddA ?? 0)), worstB = Math.min(...W.map(w => w.ddB ?? 0));
+  const gap = nf2.format(Math.abs(typA - typB));
+
+  let lv = n >= 16 && R.H === 3 ? 2 : (n >= 8 ? 1 : 0);
+  const why = [`${n} lần thử`];
+  if (!sameCcy) { lv--; why.push("hai mã khác loại tiền"); }
+  const young = Math.min(ageY(rA), ageY(rB));
+  if (young < 5) { lv--; why.push(`${ageY(rA) < ageY(rB) ? symA : symB} mới có ~${nf2.format(young)} năm dữ liệu`); }
+  lv = Math.max(0, lv);
+  const conf = [["c-lo", "Thấp"], ["c-mid", "Vừa"], ["c-hi", "Cao"]][lv];
+
+  // Hai mã có "cùng một kiểu" không? → nói thẳng thay vì cố tìm khác biệt
+  const rho = weeklyCorr(rA, rB);
+  const capDiff = P.cap ? Math.max(Math.abs(P.cap.upA - P.cap.upB), Math.abs(P.cap.dnA - P.cap.dnB)) : 99;
+  const twins = rho != null && rho >= 0.85 && Math.abs(typA - typB) < 1.5 && Math.abs(ddA - ddB) < 3 && capDiff < 0.6;
+
+  let head, sum;
+  if (lean && strong) {
+    head = `${tg(lean)} tốt hơn khá rõ với chiến thuật này`;
+    sum = `Trong ${n} lần thử, ${nm(lean)} thắng ${lean === "a" ? winsA : winsB} lần. Trường hợp thường gặp, ${nm(lean)} lãi hơn khoảng <b>${gap}%/năm</b>.`;
+  } else if (lean) {
+    const small = Math.abs(typA - typB) < 2;
+    head = small ? `${tg(lean)} nhỉnh hơn một chút` : `${tg(lean)} thường lãi hơn, nhưng không phải lúc nào cũng vậy`;
+    sum = `${nm(lean)} thắng ${lean === "a" ? winsA : winsB}/${n} lần và thường lãi hơn khoảng <b>${gap}%/năm</b>, nhưng ${nm(other)} vẫn thắng ${lean === "a" ? winsB : winsA} lần`
+      + (small ? ` — khoảng cách còn nhỏ.` : ` — kết quả vẫn phụ thuộc khá nhiều vào thời điểm bắt đầu.`);
+  } else if (twins) {
+    head = "Hai mã gần như cùng một kiểu";
+    sum = `Lãi, mức sụt và nhịp lên xuống của hai mã gần như trùng nhau (chênh lãi chỉ ~${gap}%/năm). Chọn mã nào cũng cho kết quả tương tự — phần <b>"Nên chọn mã nào"</b> bên dưới gợi ý nên dựa vào yếu tố khác.`;
+  } else if (Math.abs(typA - typB) < 1 && ties + Math.min(winsA, winsB) >= n * 0.4) {
+    head = "Lãi ngang nhau — khác nhau ở cách đi";
+    sum = `Lãi thường gặp của hai mã chỉ chênh ~${gap}%/năm, nhưng tính cách lên xuống khác nhau — xem các phần bên dưới để chọn mã hợp với bạn.`;
+  } else {
+    head = "Chưa có mã nào tốt hơn rõ ràng";
+    const lead = typA >= typB ? "a" : "b";
+    sum = `Tính chung ${nm(lead)} nhỉnh hơn khoảng <b>${gap}%/năm</b>, nhưng ${nm(lead === "a" ? "b" : "a")} vẫn thắng ${lead === "a" ? winsB : winsA}/${n} lần. Mã nào thắng phụ thuộc nhiều vào <b>thời điểm bạn bắt đầu</b>.`;
+  }
+
+  // ===== Khối 1: tích sản theo chiến thuật =====
+  const seg = (cnt, cls, label) => cnt
+    ? `<div class="wseg ${cls}" style="flex:${cnt}" title="${escAttr(label)}">${cnt / n >= 0.12 ? `<span>${cnt}</span>` : ""}</div>` : "";
+  const winBar = `<div class="vblock"><div class="vq">Nếu bắt đầu tích sản ở <b>${n} thời điểm khác nhau</b> (mỗi quý một lần, từ ${y0} đến ${y1}) và giữ <b>${R.H} năm</b>, mã nào lãi hơn?</div>`
+    + `<div class="wbar">${seg(winsA, "wa", symA + " lãi hơn: " + winsA + " lần")}${seg(ties, "wt", "Ngang nhau: " + ties + " lần")}${seg(winsB, "wb", symB + " lãi hơn: " + winsB + " lần")}</div>`
+    + `<div class="wleg"><span><i class="wa"></i>${symA} lãi hơn: <b>${winsA} lần</b></span>`
+    + (ties ? `<span><i class="wt"></i>Ngang nhau: <b>${ties} lần</b></span>` : "")
+    + `<span><i class="wb"></i>${symB} lãi hơn: <b>${winsB} lần</b></span></div></div>`;
+  const hbar = (val, max, cls, txt) => `<div class="hrow"><span class="hn">${txt}</span><div class="htrack"><i class="${cls}" style="width:${Math.max(2, Math.abs(val) / max * 100)}%"></i></div><span class="hv ${val >= 0 ? "pos" : "neg"}">${pp(val)}</span></div>`;
+  const mxR = Math.max(Math.abs(typA), Math.abs(typB), 1), mxD = Math.max(Math.abs(ddA), Math.abs(ddB), 1);
+  const twoBars = `<div class="vgrid2">`
+    + `<div class="vblock"><div class="vq">Lãi mỗi năm <span class="muted">(trường hợp thường gặp)</span></div>`
+    + hbar(typA, mxR, "wa", symA) + hbar(typB, mxR, "wb", symB) + `</div>`
+    + `<div class="vblock"><div class="vq">Lúc tài khoản âm sâu nhất <span class="muted">(trường hợp thường gặp)</span></div>`
+    + hbar(ddA, mxD, "wa", symA) + hbar(ddB, mxD, "wb", symB)
+    + `<div class="vfoot">Tệ nhất từng gặp: ${symA} ${pp(worstA)} · ${symB} ${pp(worstB)}</div></div></div>`;
+
+  // ===== Khối 2: tính cách của từng mã =====
+  let charHtml = "";
+  const rows2 = [];
+  let tA = null, tB = null;
+  if (P.cap) {
+    const c = P.cap;
+    tA = styleTag(c.upA, c.dnA, c.upM, c.dnM); tB = styleTag(c.upB, c.dnB, c.upM, c.dnM);
+    rows2.push(vsRow(`Tháng VN-Index tăng <span class="muted">(${c.nUp} tháng, TB ${pp(c.upM)})</span>`, { v: pp(c.upA), n: c.upA, cls: "pos" }, { v: pp(c.upB), n: c.upB, cls: "pos" }, 1));
+    rows2.push(vsRow(`Tháng VN-Index giảm <span class="muted">(${c.nDn} tháng, TB ${pp(c.dnM)})</span>`, { v: pp(c.dnA), n: c.dnA, cls: "neg" }, { v: pp(c.dnB), n: c.dnB, cls: "neg" }, 1));
+  }
+  if (P.lossA && P.lossB)
+    rows2.push(vsRow("Mua rồi giữ đúng 1 năm: số lần bị lỗ", { v: Math.round(P.lossA.pct) + "%", n: P.lossA.pct }, { v: Math.round(P.lossB.pct) + "%", n: P.lossB.pct }, -1,
+      "Tính với mọi tháng bắt đầu trong dữ liệu chung"));
+  if (rows2.length) {
+    const chip = (t, k) => t ? `<span class="stag ${k}" title="${escAttr(t[1])}">${t[0]}</span>` : "";
+    charHtml = `<div class="vblock"><div class="vq">Tính cách của từng mã <span class="muted">(mua 1 lần rồi giữ, ${P.cap ? "5 năm gần nhất" : "toàn bộ dữ liệu chung"})</span></div>`
+      + (tA ? `<div class="stags"><span>${tagA} ${chip(tA, "a")} <span class="muted">${tA[1]}</span></span><span>${tagB} ${chip(tB, "b")} <span class="muted">${tB[1]}</span></span></div>` : "")
+      + `<table class="vstbl"><thead><tr><th></th><th class="a"><span class="vdot a"></span>${symA}</th><th class="b"><span class="vdot b"></span>${symB}</th></tr></thead><tbody>${rows2.join("")}</tbody></table></div>`;
+  }
+
+  // ===== Khối 3: các đợt sập =====
+  let epHtml = "";
+  if (P.eps && P.eps.length) {
+    const er = P.eps.map(e => {
+      const w = vsPick(e.a, e.b, 1);
+      const cell = (v, rec, k) => `<td class="v ${w === k ? "win" : ""}"><span class="neg">${v == null ? "—" : pp(v)}</span><div class="rec">${rec === undefined ? "" : "hồi lại: " + mo(rec)}</div></td>`;
+      return `<tr><td>${mLabel(e.peakT)} → ${mLabel(e.troughT)}<div class="rec">${P.baseName} ${pp(e.mkt)}</div></td>${cell(e.a, e.recA, "a")}${cell(e.b, e.recB, "b")}</tr>`;
+    }).join("");
+    epHtml = `<div class="vblock"><div class="vq">Qua các đợt ${P.baseName} giảm mạnh <span class="muted">(từ đỉnh xuống đáy)</span></div>`
+      + `<table class="vstbl ep"><thead><tr><th>Đợt giảm</th><th class="a"><span class="vdot a"></span>${symA}</th><th class="b"><span class="vdot b"></span>${symB}</th></tr></thead><tbody>${er}</tbody></table></div>`;
+  }
+
+  // ===== Khối 4: từng năm =====
+  let yrHtml = "";
+  if (P.years && P.years.length >= 3) {
+    let ya = 0, yb = 0;
+    const chips = P.years.map(o => {
+      const d = o.a - o.b, k = Math.abs(d) < 1 ? "t" : (d > 0 ? "a" : "b");
+      if (!o.partial) { if (k === "a") ya++; else if (k === "b") yb++; }
+      const tip = `${o.y}${o.partial ? " (đến nay)" : ""}: ${symA} ${pp(o.a)} · ${symB} ${pp(o.b)}`;
+      return `<div class="ychip y${k}" title="${escAttr(tip)}"><b>${o.y}${o.partial ? "*" : ""}</b><span>${k === "t" ? "ngang" : nm(k) + " +" + nf2.format(Math.abs(d)) + "%"}</span></div>`;
+    }).join("");
+    const full = P.years.filter(o => !o.partial).length;
+    const best = P.years.filter(o => !o.partial).reduce((m, o) => Math.abs(o.a - o.b) > Math.abs(m.a - m.b) ? o : m, P.years[0]);
+    yrHtml = `<div class="vblock"><div class="vq">Từng năm, mã nào tăng nhiều hơn? <span class="muted">— ${symA} hơn <b>${ya}</b>/${full} năm, ${symB} hơn <b>${yb}</b>/${full} năm</span></div>`
+      + `<div class="ychips">${chips}</div>`
+      + `<div class="vfoot">Năm chênh nhiều nhất: ${best.y} (${symA} ${pp(best.a)} · ${symB} ${pp(best.b)}). * năm đang chạy. Rê chuột vào từng ô để xem số.</div></div>`;
+  }
+
+  // ===== Khối 5: Nên chọn mã nào? — chỉ nói khi có khác biệt thật =====
+  const pick = [];
+  const K = (txt) => pick.push(`<li><span class="ic-go"></span><span>${txt}</span></li>`);
+  const retLead = Math.abs(typA - typB) >= 1.5 ? (typA > typB ? "a" : "b") : null;
+  const calmLead = Math.abs(ddA - ddB) >= 3 ? (ddA > ddB ? "a" : "b") : null;
+  if (retLead && calmLead && retLead !== calmLead) {
+    K(`Muốn <b>lãi cao hơn</b> và chịu được cảnh tài khoản âm sâu (thường ${pp(retLead === "a" ? ddA : ddB)}) → ${tg(retLead)}.`);
+    K(`Muốn <b>ngủ ngon</b>, ít sụt hơn (thường ${pp(calmLead === "a" ? ddA : ddB)}), chấp nhận lãi thấp hơn ~${gap}%/năm → ${tg(calmLead)}.`);
+  } else if (retLead && calmLead === retLead) {
+    K(`${tg(retLead)} vừa lãi hơn vừa ít sụt hơn trong quá khứ — lựa chọn hợp lý cho đa số người tích sản với chiến thuật này.`);
+  } else if (retLead) {
+    K(`Hai mã sụt tương đương khi thị trường xấu, nhưng ${tg(retLead)} thường lãi hơn ~${gap}%/năm → ưu tiên ${nm(retLead)}${lean ? "" : " (dù chưa phải lúc nào cũng thắng)"}.`);
+  } else if (calmLead) {
+    K(`Lãi gần như nhau, nhưng ${tg(calmLead)} ít sụt hơn → nếu phải chọn, ${nm(calmLead)} dễ giữ hơn qua giai đoạn xấu.`);
+  }
+  if (P.cap && tA && tB && tA[0] !== tB[0]) {
+    const c = P.cap, upL = c.upA > c.upB ? "a" : "b", dnL = c.dnA > c.dnB ? "a" : "b";
+    if (upL !== dnL && Math.abs(c.upA - c.upB) >= 0.3 && Math.abs(c.dnA - c.dnB) >= 0.3)
+      K(`Nếu bạn tin thị trường <b>sắp đi lên</b> → ${tg(upL)} thường tăng nhanh hơn. Nếu lo thị trường <b>đi xuống</b> → ${tg(dnL)} thường giữ tiền tốt hơn. Không chắc thì chia đều cho cả hai.`);
+  }
+  if (P.eps && P.eps.length >= 2) {
+    const fa = P.eps.filter(e => e.recA != null && e.recB != null);
+    if (fa.length >= 2) {
+      const avgA = fa.reduce((s, e) => s + e.recA, 0) / fa.length, avgB = fa.reduce((s, e) => s + e.recB, 0) / fa.length;
+      if (Math.abs(avgA - avgB) >= 3)
+        K(`Sau các đợt sập, ${tg(avgA < avgB ? "a" : "b")} thường <b>hồi lại nhanh hơn</b> (~${Math.round(Math.min(avgA, avgB))} tháng so với ~${Math.round(Math.max(avgA, avgB))} tháng) — đỡ phải chờ lâu khi thị trường xấu.`);
+    }
+  }
+  if (rho != null && rho < 0.6) K(`Hai mã ít khi lên xuống cùng lúc (mức đồng pha ${nf2.format(rho)}) → <b>chia tiền cho cả hai</b> giúp tài khoản bớt dao động hơn chọn một mã.`);
+  if (twins || !pick.length) {
+    const mA2 = (metricsList().find(d => d.sym === symA)) || {}, mB2 = (metricsList().find(d => d.sym === symB)) || {};
+    K(`Hai mã đi gần như cùng một nhịp — chọn mã nào kết quả cũng tương tự. Nên quyết định theo: <b>phí bán</b> (${symA}: ${mA2.sellText || "—"} · ${symB}: ${mB2.sellText || "—"}), công ty quản lý bạn tin hơn, hoặc <b>giữ mã đang có</b> để khỏi mất phí đổi.`);
+  }
+
+  // ===== Lưu ý (chỉ những điều thực sự đáng nói) =====
+  const notes = [];
+  const N = (ic, txt) => notes.push(`<li><span class="ic-${ic}"></span><span>${txt}</span></li>`);
+  const winY = A.finalYears;
+  if (winY < 1) N("warn", `Giai đoạn bạn đang xem trên chart chỉ khoảng <b>${Math.max(1, Math.round(winY * 12))} tháng</b> — quá ngắn, đừng dựa vào các ô số liệu phía trên để chọn mã.`);
+  else if (A.irrPct !== null && B.irrPct !== null) {
+    const ud = A.irrPct - B.irrPct, pr = W.filter(w => w.d <= ud).length / n;
+    const uw = Math.abs(ud) < VS_TIE ? null : (ud > 0 ? "a" : "b");
+    if (lean && uw && uw !== lean)
+      N("warn", `Trên chart, giai đoạn bạn đang xem cho thấy ${nm(uw)} lãi hơn — <b>ngược với phần lớn các lần thử</b>. Nhiều khả năng do chọn trúng ngày bắt đầu/kết thúc thuận lợi cho ${nm(uw)}.`);
+    else if (pr >= 0.9 || pr <= 0.1)
+      N("warn", `Giai đoạn bạn đang xem trên chart là giai đoạn <b>đặc biệt thuận lợi cho ${pr >= 0.9 ? symA : symB}</b> — đừng kỳ vọng mức chênh này lặp lại.`);
+  }
+  if (!isWay1) {
+    const sA = median(W.map(w => w.sA).filter(v => v != null)), sB = median(W.map(w => w.sB).filter(v => v != null));
+    if (sA != null && sB != null) {
+      const sn = `"${strategyName(p)}"`;
+      if (sA < 0 && sB < 0) N("warn", `Chiến thuật ${sn} cho kết quả <b>kém hơn mua đều</b> trên cả hai mã (cùng số tiền bỏ ra). Thử chạy "Mua đều" để so.`);
+      else if (Math.abs(sA - sB) >= 3) N("info", `Chiến thuật ${sn} hợp với ${tg(sA > sB ? "a" : "b")} hơn: giúp thêm ${nf2.format(Math.max(sA, sB))}% tài sản cuối kỳ so với mua đều, ${sA > sB ? symB : symA} chỉ ${pp(Math.min(sA, sB))}.`);
+    }
+  }
+  if (!sameCcy) N("warn", `${assetCcy(symA) === "USD" ? symA : symB} tính bằng USD. Lãi khi đổi ra tiền Việt còn phụ thuộc tỷ giá, chưa tính ở đây.`);
+  if (isStock(symA) || isStock(symB)) N("warn", `${isStock(symA) ? symA : symB} là <b>một cổ phiếu riêng lẻ</b> — rủi ro cao hơn quỹ (quỹ chia tiền ra nhiều công ty). Kết quả quá khứ chưa nói hết rủi ro này.`);
+  if (R.skipped) N("info", `${R.skipped} lần thử bị bỏ qua vì có mã không phát sinh lệnh mua nào (giá không xuống dưới EMA200).`);
+
+  // Trái: kết luận + lời khuyên · Phải: hai mã khác nhau ở đâu (màn hẹp thì xếp chồng)
+  const left = `<div class="vhead">${head}</div><div class="vsub">${sum}</div>`
+    + `<div class="vconf ${conf[0]}">Mức chắc chắn: <b>${conf[1]}</b> <span>· ${why.join(" · ")}</span></div>`
+    + `<div class="vsec">Khi tích sản theo chiến thuật "${strategyName(p)}"</div>` + winBar + twoBars
+    + `<div class="vsec">Nên chọn mã nào?</div><ul class="vnotes">${pick.join("")}</ul>`
+    + (notes.length ? `<div class="vq" style="margin-top:12px">Lưu ý</div><ul class="vnotes">${notes.join("")}</ul>` : "")
+    + methodNote;
+  const right = (charHtml || epHtml || yrHtml)
+    ? `<div class="vsec first">Hai mã khác nhau ở đâu</div>${charHtml}${epHtml}${yrHtml}` : "";
+  return `<div class="sg vsverdict">${h4}<div class="vwrap"><div class="vcol">${left}</div>`
+    + (right ? `<div class="vcol vright">${right}</div>` : "") + `</div></div>`;
 }
 
 // Tăng trưởng giá theo khung (mua & giữ) — hai tài sản + VN-Index, cùng ngày cuối
